@@ -26,6 +26,8 @@
 #include "storage/MediaManager.h"
 #include "utils/log.h"
 
+#undef HAS_DVD_DRIVE
+
 using namespace MUSIC_INFO;
 
 #ifdef HAS_DVD_DRIVE
