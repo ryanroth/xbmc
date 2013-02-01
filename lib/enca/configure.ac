@@ -24,7 +24,7 @@ AC_CONFIG_FILES( \
   test/Makefile \
   tools/Makefile)
 
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 AM_INIT_AUTOMAKE([1.8 gnits check-news dist-bzip2])
 AM_ACLOCAL_INCLUDE(m4)
 AM_MAINTAINER_MODE
