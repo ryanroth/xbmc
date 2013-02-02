@@ -272,6 +272,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
   // Get information about system audio/video timings and geometry
   // Can be called only after retro_load_game()
   struct retro_system_av_info av_info;
+  memset(&av_info, 0, sizeof(av_info));
   m_dll.retro_get_system_av_info(&av_info);
 
   unsigned int baseWidth  = av_info.geometry.base_width; // 256
