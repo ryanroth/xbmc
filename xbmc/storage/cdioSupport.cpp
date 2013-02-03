@@ -647,18 +647,15 @@ void CCdIoSupport::GetCdTextInfo(xbmc_cdtext_t &xcdt, int trackNum)
   CSingleLock lock(*m_cdio);
 
   // Get the CD-Text , if any
-  //cdtext_t *pcdtext = (cdtext_t *)::cdio_get_cdtext(cdio, trackNum);
-  cdtext_t *pcdtext = (cdtext_t *)::cdio_get_cdtext(cdio);
+  cdtext_t *pcdtext = (cdtext_t *)::cdio_get_cdtext(cdio, trackNum);
 
   if (pcdtext == NULL)
     return ;
 
-#if 0
   // same ids used in libcdio and for our structure + the ids are consecutive make this copy loop safe.
   for (int i = 0; i < MAX_CDTEXT_FIELDS; i++)
     if (pcdtext->field[i])
       xcdt[(cdtext_field_t)i] = pcdtext->field[(cdtext_field_t)i];
-#endif
 }
 
 CCdInfo* CCdIoSupport::GetCdInfo(char* cDeviceFileName)
