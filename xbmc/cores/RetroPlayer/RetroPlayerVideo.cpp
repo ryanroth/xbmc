@@ -21,24 +21,16 @@
  */
 
 #include "RetroPlayerVideo.h"
-#include "cores/dvdplayer/DVDClock.h" // for DVD_NOPTS_VALUE
-#include "cores/dvdplayer/DVDCodecs/DVDCodecUtils.h"
-#include "cores/dvdplayer/DVDCodecs/Video/DVDVideoCodec.h"
-#include "cores/VideoRenderers/RenderFlags.h"
+#include "guilib/GraphicContext.h"
+#include "guilib/Texture.h"
+#include "guilib/TextureManager.h"
+#include "guilib/XBTF.h"
 #include "utils/log.h"
-
-#define CLAMP(a, min, max) ((a) > (max) ? (max) : ((a) < (min) ? (min) : (a)))
 
 CRetroPlayerVideo::CRetroPlayerVideo()
   : CThread("RetroPlayerVideo"),
-    m_pixelFormat(RETRO_PIXEL_FORMAT_0RGB1555),
-    m_swsContext(NULL),
-    m_bAllowFullscreen(false),
-    m_framerate(0.0),
-    m_outputWidth(0),
-    m_outputHeight(0),
-    m_outputFramerate(0.0),
-    m_bPaused(false)
+    m_queuedFrame(), // TODO: will this be value-initialized without this line?
+    m_pixelFormat(XB_FMT_RGB1555) // Libretro has this as the default pixel format
 {
 }
 
@@ -47,177 +39,63 @@ CRetroPlayerVideo::~CRetroPlayerVideo()
   StopThread();
 }
 
-void CRetroPlayerVideo::GoForth(double framerate)
-{
-  m_framerate = framerate;
-  Create();
-}
-
 void CRetroPlayerVideo::Process()
 {
-  Frame frame;
-  DVDVideoPicture *pPicture;
-
-  m_dllSwScale.Load();
-
   while (!m_bStop)
   {
-    if (m_bPaused)
-    {
-      m_pauseEvent.Wait();
-      continue;
-    }
+    m_uploadEvent.Wait();
+    if (m_bStop)
+      break;
 
-    { // Enter critical section
+    CTexture *texture = NULL;
+
+    // First lock: block SendVideoFrame() to grab the texture data
+    {
       CSingleLock lock(m_critSection);
-      if (!m_frames.size())
-      {
-        lock.Leave();
-        // Assume a frame is late if the jitter is double the frame's display time
-        if (!m_frameReady.WaitMSec((int)(1000 * 2 / m_framerate)))
-          m_frameReady.Reset();
-        else
-          CLog::Log(LOGNOTICE, "RetroPlayerVideo: Timeout waiting for frame, status is %s",
-              !m_bStop ? "running" : "not running");
-        // If event wasn't triggered, we might be done, so check m_bStop again
+
+      if (!m_queuedFrame.data || m_queuedFrame.uploaded)
         continue;
-      }
-      // If several frames built up, ignore all but the most recent
-      while (m_frames.size())
-      {
-        // Clean up any ignored frames
-        delete[] (uint8_t*)frame.data;
-        frame = m_frames.front();
-        m_frames.pop();
-      }
-    } // End critical section
 
-    pPicture = CDVDCodecUtils::AllocatePictureChromaShift(frame.width, frame.height, 0, 0);
-    if (!pPicture)
-    {
-      CLog::Log(LOGERROR, "RetroPlayerVideo: Failed to allocate picture");
-      break;
+      texture = new CTexture();
+      if (!texture)
+        continue;
+      texture->LoadFromMemory(m_queuedFrame.width, m_queuedFrame.height, m_queuedFrame.pitch,
+        m_pixelFormat, /* hasAlpha = */ false, reinterpret_cast<const unsigned char*>(m_queuedFrame.data));
+
+      m_queuedFrame.uploaded = true;
     }
-
-    pPicture->dts = DVD_NOPTS_VALUE;
-    pPicture->pts = DVD_NOPTS_VALUE;
-    pPicture->format = RENDER_FMT_YUV444P; // PIX_FMT_YUV444P
-    pPicture->color_range  = 0; // *not* CONF_FLAGS_YUV_FULLRANGE
-    pPicture->color_matrix = 4; // CONF_FLAGS_YUVCOEF_BT601
-    pPicture->iFlags  = DVP_FLAG_ALLOCATED;
-    pPicture->iDisplayWidth  = frame.width;
-    pPicture->iDisplayHeight = frame.height;
-    pPicture->iDuration = 1 / m_framerate;
-
-    // Got the picture, now make sure we're ready to render it
-    if (!CheckConfiguration(*pPicture))
-      break;
-
-    // CheckConfiguration() should have set up our SWScale context
-    if (!m_swsContext)
+    
+    // Second lock: block the renderer to load the texture to the texture manager
     {
-      CLog::Log(LOGERROR, "RetroPlayerVideo: Failed to grab SWScale context");
-      break;
+      CSingleLock lock(g_graphicsContext);
+
+      if (!m_currentTexture.empty())
+        g_TextureManager.ReleaseTexture(m_currentTexture);
+
+      m_currentTexture = g_TextureManager.LoadFromTexture(texture);
+
+      // Inc the reference counter so the texture will remain available and any
+      // calls to GetCurrentTexture() will return a valid texture name
+      if (!m_currentTexture.empty())
+        g_TextureManager.GetTexture(m_currentTexture);
     }
-
-    // Colorspace conversion
-    uint8_t *src[] = { reinterpret_cast<uint8_t*>(const_cast<void*>(frame.data)), 0, 0, 0 };
-    int      srcStride[] = { frame.pitch, 0, 0, 0 };
-    uint8_t *dst[] = { pPicture->data[0], pPicture->data[1], pPicture->data[2], 0 };
-    int      dstStride[] = { pPicture->iLineSize[0], pPicture->iLineSize[1], pPicture->iLineSize[2], 0 };
-
-    m_dllSwScale.sws_scale(m_swsContext, src, srcStride, 0, frame.height, dst, dstStride);
-
-    // Get ready to drop the picture off on RenderManger's doorstep
-    if (!g_renderManager.IsStarted())
-    {
-      CLog::Log(LOGERROR, "RetroPlayerVideo: Renderer not started");
-      break;
-    }
-
-    int index = g_renderManager.AddVideoPicture(*pPicture);
-    g_renderManager.FlipPage(CThread::m_bStop);
-    CDVDCodecUtils::FreePicture(pPicture);
-
-    // Clean up the data allocated in CRetroPlayer::OnVideoFrame()
-    delete[] (uint8_t*)frame.data;
-    frame.data = NULL;
   }
 
-  if (m_swsContext)
-    m_dllSwScale.sws_freeContext(m_swsContext);
+  delete[] m_queuedFrame.data;
+  m_queuedFrame.data = NULL;
 
-  m_dllSwScale.Unload();
-
-  m_bStop = true;
+  if (!m_currentTexture.empty())
+  {
+    g_TextureManager.ReleaseTexture(m_currentTexture);
+    m_currentTexture.clear();
+  }
 }
 
-
-
-bool CRetroPlayerVideo::CheckConfiguration(const DVDVideoPicture &picture)
+void CRetroPlayerVideo::StopThread(bool bWait /* = true */)
 {
-  double framerate = 1 / picture.iDuration;
-
-  if (!g_renderManager.IsConfigured() ||
-      m_outputWidth != picture.iWidth ||
-      m_outputHeight != picture.iHeight ||
-      m_outputFramerate != framerate)
-  {
-    unsigned int flags = 0;
-    flags |= CONF_FLAGS_YUVCOEF_BT601; // picture.color_matrix = 4
-    if (picture.color_range == 1)
-      flags |= CONF_FLAGS_YUV_FULLRANGE;
-    if (m_bAllowFullscreen)
-    {
-      flags |= CONF_FLAGS_FULLSCREEN;
-      m_bAllowFullscreen = false; // only allow on first configure
-    }
-
-    CLog::Log(LOGDEBUG, "RetroPlayerVideo: Change configuration: %dx%d, %4.2f fps", picture.iWidth, picture.iHeight, framerate);
-    int orientation = 0; // (90 = 5, 180 = 2, 270 = 7), if we ever want to use RETRO_ENVIRONMENT_SET_ROTATION
-    if (!g_renderManager.Configure(picture.iWidth, picture.iHeight, picture.iDisplayWidth, picture.iDisplayHeight, (float)framerate, flags, picture.format, picture.extended_format, orientation))
-    {
-      CLog::Log(LOGERROR, "RetroPlayerVideo: Failed to configure renderer");
-      return false;
-    }
-
-    m_outputWidth = picture.iWidth;
-    m_outputHeight = picture.iHeight;
-    m_outputFramerate = framerate;
-
-    PixelFormat format;
-    switch (m_pixelFormat)
-    {
-    case RETRO_PIXEL_FORMAT_XRGB8888:
-      CLog::Log(LOGINFO, "RetroPlayerVideo: Pixel Format: XRGB8888");
-      format = PIX_FMT_ARGB;
-      break;
-    case RETRO_PIXEL_FORMAT_RGB565:    
-  	  CLog::Log(LOGINFO, "RetroPlayerVideo: Pixel Format: RGB565");
-      format = PIX_FMT_RGB565LE;
-      break;
-    case RETRO_PIXEL_FORMAT_0RGB1555:
-    default:
-      CLog::Log(LOGINFO, "RetroPlayerVideo: Pixel Format: RGB1555");
-      format = PIX_FMT_RGB555LE;
-      break;
-    }
-
-#ifdef __BIG_ENDIAN__
-    if (format == PIX_FMT_RGB555LE)
-      format = PIX_FMT_RGB555BE;
-#endif
-
-    if (m_swsContext)
-      m_dllSwScale.sws_freeContext(m_swsContext);
-
-    m_swsContext = m_dllSwScale.sws_getContext(
-      picture.iWidth,    picture.iHeight,    format,
-      picture.iWidth, picture.iHeight, PIX_FMT_YUV444P,
-      SWS_POINT | SwScaleCPUFlags(), NULL, NULL, NULL
-    );
-  }
-  return true;
+  m_bStop = true;
+  m_uploadEvent.Set();
+  CThread::StopThread(bWait);
 }
 
 void CRetroPlayerVideo::SendVideoFrame(const void *data, unsigned width, unsigned height, size_t pitch)
@@ -225,11 +103,38 @@ void CRetroPlayerVideo::SendVideoFrame(const void *data, unsigned width, unsigne
   if (IsRunning())
   {
     CSingleLock lock(m_critSection);
-    m_frames.push(Frame(data, width, height, pitch));
+
+    // If frames are the same size, we can avoid an extra allocation
+    if (!m_queuedFrame.data || pitch * height != m_queuedFrame.pitch * m_queuedFrame.height)
+    {
+      delete[] m_queuedFrame.data;
+      m_queuedFrame.data = new unsigned char[pitch * height];
+      if (!m_queuedFrame.data)
+        return;
+    }
+
+    memcpy(const_cast<void*>(m_queuedFrame.data), data, pitch * height);
+    m_queuedFrame.width    = width;
+    m_queuedFrame.height   = height;
+    m_queuedFrame.pitch    = pitch;
+    m_queuedFrame.uploaded = false;
   }
-  else
+}
+
+void CRetroPlayerVideo::SetPixelFormat(retro_pixel_format pixelFormat)
+{
+  switch (pixelFormat)
   {
-    // Frame was discarded, so make sure we clean up after CRetroPlayer::OnVideoFrame()
-    delete[] (uint8_t*)data;
+    case RETRO_PIXEL_FORMAT_XRGB8888:
+      //m_pixelFormat = XB_FMT_RGB8;
+      m_pixelFormat = XB_FMT_A8R8G8B8;
+      break;
+    case RETRO_PIXEL_FORMAT_RGB565:
+      m_pixelFormat = XB_FMT_R5G6B5;
+      break;
+    case RETRO_PIXEL_FORMAT_0RGB1555:
+    default:
+      m_pixelFormat = XB_FMT_RGB1555;
+      break;
   }
 }

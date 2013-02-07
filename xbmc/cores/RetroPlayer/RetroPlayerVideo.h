@@ -21,16 +21,9 @@
  */
 #pragma once
 
-#include "linux/PlatformDefs.h"
-#include "cores/VideoRenderers/RenderManager.h"
-#include "DllSwScale.h"
 #include "games/libretro/libretro.h"
 #include "threads/Thread.h"
-
-#include <stdint.h>
-#include <queue>
-
-struct SwsContext;
+#include "threads/CriticalSection.h"
 
 class CRetroPlayerVideo : public CThread
 {
@@ -41,76 +34,41 @@ public:
     unsigned int width;
     unsigned int height;
     size_t       pitch;
-    Frame() { data = NULL; width = 0; height = 0; pitch = 0; }
-    Frame(const void *data, unsigned width, unsigned height, size_t pitch)
-      : data(data), width(width), height(height), pitch(pitch) { }
-    Frame(const Frame &frame) { *this = frame; }
-    Frame &operator=(const Frame &frame)
-    {
-      if (this != &frame) { data = frame.data; width = frame.width; height = frame.height; pitch = frame.pitch; }
-      return *this;
-    }
+    bool         uploaded;
   };
 
   CRetroPlayerVideo();
   ~CRetroPlayerVideo();
 
   /**
-   * Begin doing what a RetroPlayerVideo does best.
-   */
-  void GoForth(double framerate);
-
-  /**
    * Send a video frame to be rendered by this class. The pixel format is
    * specified by m_pixelFormat.
    */
   void SendVideoFrame(const void *data, unsigned width, unsigned height, size_t pitch);
+  
+  void LoadTexture() const { m_uploadEvent.Set(); }
+
+  /**
+   * Returns the name of the texture loaded in the texture manager.
+   */
+  const CStdString &GetCurrentTexture() const { return m_currentTexture; }
 
   /**
    * Set the m_pixelFormat to match the format used by the game client. If this
    * function is not called, m_pixelFormat defaults to RETRO_PIXEL_FORMAT_0RGB1555.
    * For a list of valid pixel formats, see libretro.h.
    */
-  void SetPixelFormat(retro_pixel_format pixelFormat) { m_pixelFormat = pixelFormat; }
-
-  void EnableFullscreen(bool bEnable) { m_bAllowFullscreen = bEnable; }
-
-  void Update(bool bPauseDrawing) { g_renderManager.Update(bPauseDrawing); }
-
-  void Pause() { m_bPaused = true; }
-  void UnPause() { m_bPaused = false; m_pauseEvent.Set(); }
-
-  /**
-   * This is called immediately after the game client's RunFrame(). Inside
-   * RunFrame(), a callback is invoked that calls SendVideoFrame(). Therefore,
-   * once RunFrame() exits, a frame is waiting to be rendered and this method
-   * wakes the thread to process the frame.
-   */
-  void Tickle() { m_frameReady.Set(); }
+  void SetPixelFormat(retro_pixel_format pixelFormat);
+  
+  virtual void StopThread(bool bWait = true);
 
 protected:
   virtual void Process();
-  //virtual void OnExit();
 
 private:
-  bool CheckConfiguration(const DVDVideoPicture &picture);
-
-  std::queue<Frame>  m_frames;
-  CEvent             m_frameReady;
-  CEvent             m_pauseEvent;
+  Frame              m_queuedFrame;
+  CStdString         m_currentTexture;
+  unsigned int       m_pixelFormat;
   CCriticalSection   m_critSection;
-  retro_pixel_format m_pixelFormat;
-  DllSwScale         m_dllSwScale;
-  SwsContext        *m_swsContext;
-
-  bool               m_bAllowFullscreen;
-  double             m_framerate;
-  // Output variables are used to store the current output configuration. Each
-  // frame the picture's configuration is compared to the output configuration,
-  // and a discrepancy will reconfigure the render manager, as well as saving
-  // the new state to these variables.
-  unsigned int       m_outputWidth;
-  unsigned int       m_outputHeight;
-  double             m_outputFramerate;
-  bool               m_bPaused;
+  mutable CEvent     m_uploadEvent;
 };

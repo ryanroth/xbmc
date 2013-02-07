@@ -42,6 +42,8 @@
 #include "guilib/GUISliderControl.h"
 #include "settings/Settings.h"
 #include "guilib/GUISelectButtonControl.h"
+#include "guilib/GUIVideoControl.h"
+#include "GUIUserMessages.h"
 #include "FileItem.h"
 #include "video/VideoReferenceClock.h"
 #include "settings/AdvancedSettings.h"
@@ -113,6 +115,8 @@ using namespace PVR;
 
 //Progressbar used for buffering status and after seeking
 #define CONTROL_PROGRESS                 23
+
+#define GAME_TEXTURE                    200
 
 #if defined(TARGET_DARWIN)
 static CLinuxResourceCounter m_resourceCounter;
@@ -720,7 +724,7 @@ bool CGUIWindowFullScreen::OnMessage(CGUIMessage& message)
     {
       // check whether we've come back here from a window during which time we've actually
       // stopped playing videos
-      if (message.GetParam1() == WINDOW_INVALID && !g_application.IsPlayingVideo())
+      if (message.GetParam1() == WINDOW_INVALID && !(g_application.IsPlayingVideo() || g_application.IsPlayingGame()))
       { // why are we here if nothing is playing???
         g_windowManager.PreviousWindow();
         return true;
@@ -736,10 +740,16 @@ bool CGUIWindowFullScreen::OnMessage(CGUIMessage& message)
 
 #ifdef HAS_VIDEO_PLAYBACK
       // make sure renderer is uptospeed
-      g_renderManager.Update(false);
+      if (g_application.IsPlayingVideo())
+        g_renderManager.Update(false);
 #endif
       // now call the base class to load our windows
       CGUIWindow::OnMessage(message);
+
+      // Inject our game screen
+      CGUIControl *control = new CGUIVideoControl(GetID(), GAME_TEXTURE, 0, 0, (float)m_coordsRes.iWidth, (float)m_coordsRes.iHeight);
+      control->SetVisible(g_application.IsPlayingGame());
+      AddControl(control, 0);
 
       m_bShowViewModeInfo = false;
 
@@ -793,7 +803,8 @@ bool CGUIWindowFullScreen::OnMessage(CGUIMessage& message)
 
 #ifdef HAS_VIDEO_PLAYBACK
       // make sure renderer is uptospeed
-      g_renderManager.Update(false);
+      if (g_application.IsPlayingVideo())
+        g_renderManager.Update(false);
 #endif
 
       CSingleLock lockFont(m_fontLock);
@@ -806,6 +817,16 @@ bool CGUIWindowFullScreen::OnMessage(CGUIMessage& message)
       }
 
       return true;
+    }
+  case GUI_MSG_PLAYBACK_STARTED:
+  case GUI_MSG_PLAYBACK_ENDED:
+  case GUI_MSG_PLAYBACK_STOPPED:
+  case GUI_MSG_PLAYLIST_CHANGED:
+    {
+      CGUIControl *control = const_cast<CGUIControl*>(GetControl(GAME_TEXTURE));
+      if (control)
+        control->SetVisible(g_application.IsPlayingGame());
+      break;
     }
   case GUI_MSG_CLICKED:
     {

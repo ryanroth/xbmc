@@ -39,10 +39,10 @@ CRetroPlayerAudio::~CRetroPlayerAudio()
   StopThread();
 }
 
-void CRetroPlayerAudio::GoForth(int samplerate)
+void CRetroPlayerAudio::Create(int samplerate)
 {
   m_samplerate = samplerate;
-  Create();
+  CThread::Create();
 }
 
 void CRetroPlayerAudio::Process()

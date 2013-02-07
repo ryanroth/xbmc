@@ -194,6 +194,7 @@ public:
   bool IsPlayingVideo() const;
   bool IsPlayingGame() const;
   bool IsPlayingFullScreenVideo() const;
+  bool IsPlayingFullScreenGame() const;
   bool IsStartingPlayback() const { return m_bPlaybackStarting; }
   bool IsFullScreen();
   bool OnKey(const CKey& key);

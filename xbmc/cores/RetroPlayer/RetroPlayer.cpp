@@ -23,12 +23,12 @@
 #include "RetroPlayer.h"
 #include "addons/AddonManager.h"
 #include "cores/dvdplayer/DVDClock.h"
-#include "cores/VideoRenderers/RenderManager.h"
+//#include "cores/VideoRenderers/RenderManager.h"
 #include "dialogs/GUIDialogBusy.h"
 #include "games/GameManager.h"
 #include "games/tags/GameInfoTag.h"
-#include "guilib/GUIWindowManager.h"
-#include "guilib/Key.h"
+//#include "guilib/GUIWindowManager.h"
+//#include "guilib/Key.h"
 #include "utils/log.h"
 
 #define PLAYSPEED_PAUSED    0
@@ -112,7 +112,9 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
     m_gameClient.reset();
     return false;
   }
+
   m_retroPlayer = this;
+
   if (!m_gameClient->OpenFile(file, m_callbacks))
   {
     CLog::Log(LOGERROR, "RetroPlayer: Error opening file");
@@ -126,7 +128,6 @@ bool CRetroPlayer::OpenFile(const CFileItem& file, const CPlayerOptions& options
     return false;
   }
 
-  g_renderManager.PreInit();
   Create();
   CLog::Log(LOGDEBUG, "RetroPlayer: File opened sucessfully");
   return true;
@@ -146,16 +147,12 @@ bool CRetroPlayer::CloseFile()
   // we are done after the StopThread call
   StopThread(true);
 
-  g_renderManager.UnInit();
   CLog::Log(LOGDEBUG, "RetroPlayer: File closed");
   return true;
 }
 
 void CRetroPlayer::Process()
 {
-  m_video.EnableFullscreen(m_PlayerOptions.fullscreen);
-
-  // Start the video thread
   double framerate = m_gameClient->GetFrameRate();
   if (framerate < 5 || framerate > 100)
   {
@@ -183,10 +180,10 @@ void CRetroPlayer::Process()
       CLog::Log(LOGDEBUG, "RetroPlayer: Frame rate changed from %f to %f", oldFramerate, framerate);
       CLog::Log(LOGDEBUG, "RetroPlayer: Sample rate changed from %f to %d", samplerate, newSamplerate);
     }
-    m_audio.GoForth(newSamplerate);
+    m_audio.Create(newSamplerate); // TODO: Rename to Create()
   }
 
-  m_video.GoForth(framerate);
+  m_video.Create();
   m_input.Begin();
 
   const double frametime = 1000 * 1000 / framerate; // useconds
@@ -197,12 +194,10 @@ void CRetroPlayer::Process()
   {
     if (m_playSpeed <= PLAYSPEED_PAUSED)
     {
-      m_video.Pause();
       m_audio.Pause();
       m_pauseEvent.Wait();
       // Reset the clock
       nextpts = CDVDClock::GetAbsoluteClock() + frametime;
-      m_video.UnPause();
       m_audio.UnPause();
       continue;
     }
@@ -210,7 +205,6 @@ void CRetroPlayer::Process()
     // Run the game client for the next frame
     m_gameClient->RunFrame();
 
-    m_video.Tickle();
     // Audio tickling occurs in CRetroPlayerAudio::SendAudioFrames()
 
     CDVDClock::WaitAbsoluteClock(nextpts);
@@ -242,14 +236,7 @@ void CRetroPlayer::OnVideoFrame(const void *data, unsigned width, unsigned heigh
 {
   // Verify all game client data. You don't know where that code's been.
   if (data && width && height && pitch)
-  {
-    uint8_t *copy = new uint8_t[pitch * height];
-    if (copy)
-    {
-      memcpy(copy, data, pitch * height * sizeof(uint8_t));
-      m_retroPlayer->m_video.SendVideoFrame(copy, width, height, pitch);
-    }
-  }
+    m_retroPlayer->m_video.SendVideoFrame(data, width, height, pitch);
 }
 
 /* static */

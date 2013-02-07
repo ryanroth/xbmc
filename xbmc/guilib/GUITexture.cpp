@@ -162,6 +162,12 @@ bool CGUITextureBase::Process(unsigned int currentTime)
 
 void CGUITextureBase::Render()
 {
+  if (m_info.filename.substr(0, 1) == "0")
+  {
+    int i = 0;
+    (void)i;
+  }
+
   if (!m_visible || !m_texture.size())
     return;
 

@@ -49,6 +49,8 @@ public:
   virtual bool HasVideo() const { return true; }
   virtual bool HasAudio() const { return true; }
 
+  const CRetroPlayerVideo &GetVideoPlayer() const { return m_video; }
+
   virtual void GetAudioInfo(CStdString& strAudioInfo) { strAudioInfo = "CRetroPlayer:GetAudioInfo"; }
   virtual void GetVideoInfo(CStdString& strVideoInfo) { strVideoInfo = "CRetroPlayer:GetVideoInfo"; }
   virtual void GetGeneralInfo(CStdString& strGeneralInfo) { strGeneralInfo = "CRetroPlayer:GetGeneralInfo"; }
@@ -60,7 +62,7 @@ public:
   //virtual int  GetBitsPerSample() { return 0; }
   //virtual int  GetSampleRate() { return 0; }
 
-  virtual void Update(bool bPauseDrawing = false) { m_video.Update(bPauseDrawing); }
+  virtual void Update(bool bPauseDrawing = false) { }
   //virtual void GetVideoRect(CRect& SrcRect, CRect& DestRect) { }
   //virtual void GetVideoAspectRatio(float& fAR) { fAR = 1.0f; }
   //virtual int  GetPictureWidth() { return 0; }

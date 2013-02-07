@@ -31,6 +31,7 @@
 #include "cores/dvdplayer/DVDFileInfo.h"
 #include "cores/AudioEngine/AEFactory.h"
 #include "cores/AudioEngine/Utils/AEUtil.h"
+#include "cores/RetroPlayer/RetroPlayer.h"
 #include "cores/RetroPlayer/RetroPlayerInput.h"
 #include "PlayListPlayer.h"
 #include "Autorun.h"
@@ -2294,7 +2295,7 @@ void CApplication::Render()
   if (m_bStop)
     return;
 
-  if (!m_AppActive && !m_bStop && (!IsPlayingVideo() || IsPaused()))
+  if (!m_AppActive && !m_bStop && (!(IsPlayingVideo() || IsPlayingGame()) || IsPaused()))
   {
     Sleep(1);
     ResetScreenSaver();
@@ -2317,7 +2318,7 @@ void CApplication::Render()
     bool extPlayerActive = m_eCurrentPlayer == EPC_EXTPLAYER && IsPlaying() && !m_AppFocused;
 
     m_bPresentFrame = false;
-    if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && !IsPaused())
+    if (!extPlayerActive && g_graphicsContext.IsFullScreenVideo() && /* !IsPlayingGame() && */ !IsPaused())
     {
       CSingleLock lock(m_frameMutex);
 
@@ -2355,6 +2356,7 @@ void CApplication::Render()
   }
 
   CSingleLock lock(g_graphicsContext);
+  
   g_infoManager.UpdateFPS();
 
   if (g_graphicsContext.IsFullScreenVideo() && IsPlaying() && vsync_mode == VSYNC_VIDEO)
@@ -4303,6 +4305,16 @@ bool CApplication::PlayFile(const CFileItem& item, bool bRestart)
     }
 #endif
 
+    if (IsPlayingGame())
+    {
+      if (g_windowManager.GetActiveWindow() == WINDOW_VISUALISATION)
+        g_windowManager.ActivateWindow(WINDOW_FULLSCREEN_VIDEO);
+
+      // if player didn't manange to switch to fullscreen by itself do it here
+      if (options.fullscreen && g_windowManager.GetActiveWindow() != WINDOW_FULLSCREEN_VIDEO)
+        SwitchToFullScreen();
+    }
+
 #if !defined(TARGET_DARWIN) && !defined(_LINUX)
     g_audioManager.Enable(false);
 #endif
@@ -4603,9 +4615,14 @@ bool CApplication::IsPlayingFullScreenVideo() const
   return IsPlayingVideo() && g_graphicsContext.IsFullScreenVideo();
 }
 
+bool CApplication::IsPlayingFullScreenGame() const
+{
+  return IsPlayingGame() && g_graphicsContext.IsFullScreenVideo();
+}
+
 bool CApplication::IsFullScreen()
 {
-  return IsPlayingFullScreenVideo() ||
+  return IsPlayingFullScreenVideo() || IsPlayingFullScreenGame() ||
         (g_windowManager.GetActiveWindow() == WINDOW_VISUALISATION) ||
          g_windowManager.GetActiveWindow() == WINDOW_SLIDESHOW;
 }
@@ -5302,6 +5319,15 @@ void CApplication::Process()
   // update sound
   if (m_pPlayer)
     m_pPlayer->DoAudioWork();
+
+  // If a new frame is queued up, have RetroPlayer load it into the texture
+  // manager for the next call to Render()
+  if (IsPlayingGame())
+  {
+    CRetroPlayer *rp = dynamic_cast<CRetroPlayer*>(m_pPlayer);
+    if (rp)
+      rp->GetVideoPlayer().LoadTexture();
+  }
 
   // do any processing that isn't needed on each run
   if( m_slowTimer.GetElapsedMilliseconds() > 500 )

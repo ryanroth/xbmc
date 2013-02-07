@@ -213,18 +213,7 @@ void CThread::Action()
       return;
   }
 
-  try
-  {
-    Process();
-  }
-  catch (const XbmcCommons::UncheckedException &e)
-  {
-    e.LogThrowMessage("Process");
-  }
-  catch (...)
-  {
-    LOG(LOGERROR, "%s - thread %s, Unhandled exception caught in thread process, aborting. auto delete: %d", __FUNCTION__, m_ThreadName.c_str(), IsAutoDelete());
-  }
+  Process();
 
   try
   {

@@ -49,7 +49,7 @@ public:
   /**
    * Rev up the engines and start the thread.
    */
-  void GoForth(int samplerate);
+  void Create(int samplerate);
 
   /**
    * Send audio samples to be processed by this class. Data format is:
