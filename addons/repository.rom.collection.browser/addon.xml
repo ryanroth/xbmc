@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.repository.rom.collection.browser"
+        name="Rom Collection Browser (libretro branch)"
+        version="1.0.0"
+        provider-name="carabalb, jimyx17, malte, redkiller">
+    <requires>
+        <import addon="xbmc.addon" version="12.0.0"/>
+        <import addon="xbmc.libretro" version="1.0.0"/>
+    </requires>
+    <extension point="xbmc.addon.repository" name="Rom Collection Browser (libretro branch)">
+        <info compressed="false">https://rcblibretro.googlecode.com/git/addons.xml</info>
+        <checksum>https://rcblibretro.googlecode.com/git/addons.xml.md5</checksum>
+        <datadir zip="false">https://rcblibretro.googlecode.com/git/</datadir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary>Rom Collection Browser (libretro branch)</summary>
+        <description></description>
+        <nofanart>true</nofanart>
+        <platform>all</platform>
+    </extension>
+</addon>
