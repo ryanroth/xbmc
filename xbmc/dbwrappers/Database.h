@@ -28,6 +28,7 @@ namespace dbiplus {
 }
 
 #include <memory>
+#include <vector>
 
 class DatabaseSettings; // forward
 class CDbUrl;
@@ -143,6 +144,9 @@ public:
 protected:
   friend class CDatabaseManager;
   bool Update(const DatabaseSettings &db);
+
+  bool GetAllTables(std::vector<CStdString> &tableList);
+  bool GetAllIndices(std::vector<CStdString> &indexList);
 
   void Split(const CStdString& strFileNameAndPath, CStdString& strPath, CStdString& strFileName);
   uint32_t ComputeCRC(const CStdString &text);
