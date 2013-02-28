@@ -27,6 +27,7 @@
 #include "guilib/GUIWindowManager.h"
 #include "GUIPassword.h"
 #include "settings/GUISettings.h"
+#include "URL.h"
 #include "Util.h"
 
 #define CONTROL_BTNVIEWASICONS      2
