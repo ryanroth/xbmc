@@ -410,9 +410,16 @@
     <ClCompile Include="..\..\xbmc\DbUrl.cpp" />
     <ClCompile Include="..\..\xbmc\dbwrappers\Database.cpp" />
     <ClCompile Include="..\..\xbmc\dbwrappers\dataset.cpp" />
+    <ClCompile Include="..\..\xbmc\dbwrappers\DynamicDatabase.cpp" />
     <ClCompile Include="..\..\xbmc\dbwrappers\mysqldataset.cpp" />
     <ClCompile Include="..\..\xbmc\dbwrappers\qry_dat.cpp" />
     <ClCompile Include="..\..\xbmc\dbwrappers\sqlitedataset.cpp" />
+    <ClCompile Include="..\..\xbmc\dbwrappers\test\TestDynamicDatabase.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug (OpenGL)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (DirectX)|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release (OpenGL)|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\xbmc\dialogs\GUIDialogBoxBase.cpp" />
     <ClCompile Include="..\..\xbmc\dialogs\GUIDialogBusy.cpp" />
     <ClCompile Include="..\..\xbmc\dialogs\GUIDialogButtonMenu.cpp" />
@@ -586,6 +593,8 @@
     <ClCompile Include="..\..\xbmc\filesystem\ZipDirectory.cpp" />
     <ClCompile Include="..\..\xbmc\filesystem\ZipFile.cpp" />
     <ClCompile Include="..\..\xbmc\filesystem\ZipManager.cpp" />
+    <ClCompile Include="..\..\xbmc\games\database\SavegameDatabase.cpp" />
+    <ClCompile Include="..\..\xbmc\games\database\SavegameInfoTag.cpp" />
     <ClCompile Include="..\..\xbmc\games\tags\GameboyTag.cpp" />
     <ClCompile Include="..\..\xbmc\games\tags\GameInfoTag.cpp" />
     <ClCompile Include="..\..\xbmc\games\tags\GameInfoTagLoader.cpp" />
@@ -1048,6 +1057,7 @@
     <ClInclude Include="..\..\xbmc\cores\RetroPlayer\RetroPlayerAudio.h" />
     <ClInclude Include="..\..\xbmc\cores\RetroPlayer\RetroPlayerInput.h" />
     <ClInclude Include="..\..\xbmc\cores\RetroPlayer\RetroPlayerVideo.h" />
+    <ClInclude Include="..\..\xbmc\dbwrappers\DynamicDatabase.h" />
     <ClInclude Include="..\..\xbmc\dialogs\GUIDialogKeyboardGeneric.h" />
     <ClInclude Include="..\..\xbmc\DbUrl.h" />
     <ClInclude Include="..\..\xbmc\dialogs\GUIDialogMediaFilter.h" />
@@ -1058,6 +1068,8 @@
     <ClInclude Include="..\..\xbmc\filesystem\VideoDatabaseDirectory\DirectoryNodeTags.h" />
     <ClInclude Include="..\..\xbmc\filesystem\windows\WINFileSMB.h" />
     <ClInclude Include="..\..\xbmc\filesystem\windows\WINSMBDirectory.h" />
+    <ClInclude Include="..\..\xbmc\games\database\SavegameDatabase.h" />
+    <ClInclude Include="..\..\xbmc\games\database\SavegameInfoTag.h" />
     <ClInclude Include="..\..\xbmc\guilib\cximage.h" />
     <ClInclude Include="..\..\xbmc\games\tags\GameboyTag.h" />
     <ClInclude Include="..\..\xbmc\games\tags\GameInfoTag.h" />
@@ -1118,6 +1130,7 @@
     <ClInclude Include="..\..\xbmc\interfaces\python\PyContext.h" />
     <ClInclude Include="..\..\xbmc\interfaces\python\pythreadstate.h" />
     <ClInclude Include="..\..\xbmc\music\karaoke\karaokevideobackground.h" />
+    <ClInclude Include="..\..\xbmc\utils\IDBInfoTag.h" />
     <ClInclude Include="..\..\xbmc\video\FFmpegVideoDecoder.h" />
     <ClInclude Include="..\..\xbmc\interfaces\python\swig.h" />
     <ClInclude Include="..\..\xbmc\interfaces\python\XBPython.h" />

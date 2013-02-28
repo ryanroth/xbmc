@@ -298,6 +298,12 @@
     <Filter Include="games\windows">
       <UniqueIdentifier>{e1900649-cbda-4c79-bd6a-b99103608116}</UniqueIdentifier>
     </Filter>
+    <Filter Include="dbwrappers\test">
+      <UniqueIdentifier>{43dbf5f1-ffdc-4fd5-8f6c-5f38f89b192f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="games\database">
+      <UniqueIdentifier>{811d2295-c206-4480-80fc-08955ddba8fa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\xbmc\win32\pch.cpp">
@@ -3034,6 +3040,18 @@
     </ClCompile>
     <ClCompile Include="..\..\xbmc\games\windows\GUIViewStateWindowGames.cpp">
       <Filter>games\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\dbwrappers\DynamicDatabase.cpp">
+      <Filter>dbwrappers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\dbwrappers\test\TestDynamicDatabase.cpp">
+      <Filter>dbwrappers\test</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\games\database\SavegameDatabase.cpp">
+      <Filter>games\database</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\xbmc\games\database\SavegameInfoTag.cpp">
+      <Filter>games\database</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -5847,7 +5865,6 @@
     <ClInclude Include="..\..\xbmc\interfaces\python\PyContext.h">
       <Filter>interfaces\python</Filter>
     </ClInclude>
-
     <ClInclude Include="..\..\xbmc\guilib\iimage.h">
       <Filter>guilib</Filter>
     </ClInclude>
@@ -5925,6 +5942,18 @@
     </ClInclude>
     <ClInclude Include="..\..\xbmc\games\windows\GUIViewStateWindowGames.h">
       <Filter>games\windows</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\dbwrappers\DynamicDatabase.h">
+      <Filter>dbwrappers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\utils\IDBInfoTag.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\games\database\SavegameDatabase.h">
+      <Filter>games\database</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\games\database\SavegameInfoTag.h">
+      <Filter>games\database</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
