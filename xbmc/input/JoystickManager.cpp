@@ -32,8 +32,9 @@
 #if defined(TARGET_WINDOWS)
 #include "input/windows/WINJoystickXInput.h"
 #include "input/windows/WINJoystickDX.h"
-#else
+#elif defined(TARGET_LINUX)
 #include "input/linux/LinuxJoystickSDL.h"
+#include "input/linux/LinuxJoystickXpad.h"
 #endif
 
 
@@ -62,6 +63,7 @@ void CJoystickManager::Initialize()
   CJoystickDX::Initialize(m_joysticks);
 #else
   CLinuxJoystickSDL::Initialize(m_joysticks);
+  CLinuxJoystickXpad::Initialize(m_joysticks);
 #endif
 
   while (m_joysticks.size() > JOY_ARRAY_LENGTH(m_states))
