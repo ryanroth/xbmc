@@ -20,25 +20,25 @@
 
 #pragma once
 
-#include "IJoystick.h"
+#include "input/IJoystick.h"
 
 #include <string>
 
 struct _SDL_Joystick;
 typedef struct _SDL_Joystick SDL_Joystick;
 
-class CJoystickSDL : public IJoystick
+class CLinuxJoystickSDL : public IJoystick
 {
 public:
   static void Initialize(JoystickArray &joysticks);
   static void DeInitialize(JoystickArray &joysticks);
 
-  virtual ~CJoystickSDL() { }
+  virtual ~CLinuxJoystickSDL() { }
   virtual void Update();
   virtual const SJoystick &GetState() const { return m_state; }
 
 private:
-  CJoystickSDL(std::string name, SDL_Joystick *pJoystick, unsigned int id);
+  CLinuxJoystickSDL(std::string name, SDL_Joystick *pJoystick, unsigned int id);
   
   SDL_Joystick *m_pJoystick;
   SJoystick m_state;

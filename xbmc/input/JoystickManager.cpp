@@ -33,7 +33,7 @@
 #include "input/windows/WINJoystickXInput.h"
 #include "input/windows/WINJoystickDX.h"
 #else
-#include "input/SDLJoystick.h"
+#include "input/linux/LinuxJoystickSDL.h"
 #endif
 
 
@@ -61,7 +61,7 @@ void CJoystickManager::Initialize()
   CJoystickXInput::Initialize(m_joysticks);
   CJoystickDX::Initialize(m_joysticks);
 #else
-  CJoystickSDL::Initialize(m_joysticks);
+  CLinuxJoystickSDL::Initialize(m_joysticks);
 #endif
 
   while (m_joysticks.size() > JOY_ARRAY_LENGTH(m_states))
@@ -78,7 +78,7 @@ void CJoystickManager::DeInitialize()
   CJoystickXInput::DeInitialize(m_joysticks);
   CJoystickDX::DeInitialize(m_joysticks);
 #else
-  CJoystickSDL::DeInitialize(m_joysticks);
+  CLinuxJoystickSDL::DeInitialize(m_joysticks);
 #endif
 
   for (unsigned int i = 0; i < JOY_ARRAY_LENGTH(m_states); i++)

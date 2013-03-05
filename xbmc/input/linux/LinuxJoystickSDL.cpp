@@ -18,7 +18,7 @@
 *
 */
 
-#include "SDLJoystick.h"
+#include "LinuxJoystickSDL.h"
 #include "utils/log.h"
 
 #include <SDL/SDL.h>
@@ -28,7 +28,7 @@
 #define MAX_AXISAMOUNT    32768
 
 
-CJoystickSDL::CJoystickSDL(std::string name, SDL_Joystick *pJoystick, unsigned int id) : m_pJoystick(pJoystick), m_state()
+CLinuxJoystickSDL::CLinuxJoystickSDL(std::string name, SDL_Joystick *pJoystick, unsigned int id) : m_pJoystick(pJoystick), m_state()
 {
   m_state.id          = id;
   m_state.name        = name;
@@ -42,7 +42,7 @@ CJoystickSDL::CJoystickSDL(std::string name, SDL_Joystick *pJoystick, unsigned i
 }
 
 /* static */
-void CJoystickSDL::Initialize(JoystickArray &joysticks)
+void CLinuxJoystickSDL::Initialize(JoystickArray &joysticks)
 {
   DeInitialize(joysticks);
 
@@ -70,7 +70,7 @@ void CJoystickSDL::Initialize(JoystickArray &joysticks)
 #endif
       if (joy)
       {
-        joysticks.push_back(boost::shared_ptr<IJoystick>(new CJoystickSDL(SDL_JoystickName(i),
+        joysticks.push_back(boost::shared_ptr<IJoystick>(new CLinuxJoystickSDL(SDL_JoystickName(i),
             joy, joysticks.size())));
       }
     }
@@ -81,11 +81,11 @@ void CJoystickSDL::Initialize(JoystickArray &joysticks)
 }
 
 /* static */
-void CJoystickSDL::DeInitialize(JoystickArray &joysticks)
+void CLinuxJoystickSDL::DeInitialize(JoystickArray &joysticks)
 {
   for (int i = 0; i < (int)joysticks.size(); i++)
   {
-    if (boost::dynamic_pointer_cast<CJoystickSDL>(joysticks[i]))
+    if (boost::dynamic_pointer_cast<CLinuxJoystickSDL>(joysticks[i]))
       joysticks.erase(joysticks.begin() + i--);
   }
   // Restart SDL joystick subsystem
@@ -94,7 +94,7 @@ void CJoystickSDL::DeInitialize(JoystickArray &joysticks)
     CLog::Log(LOGERROR, "Stopping joystick SDL subsystem failed");
 }
 
-void CJoystickSDL::Update()
+void CLinuxJoystickSDL::Update()
 {
   // Update the state of all opened joysticks
   SDL_JoystickUpdate();
