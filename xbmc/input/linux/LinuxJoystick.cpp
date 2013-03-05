@@ -32,11 +32,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-/* The following values come from include/input.h in the kernel
-   source; the small variant is used up to version 2.6.27, the large
-   one from 2.6.28 onwards. We need to handle both values because the
-   kernel doesn't; it only expects one of the values, and we need to
-   determine which one at run-time. */
+/*
+ * The following values come from include/input.h in the kernel source; the
+ * small variant is used up to version 2.6.27, the large one from 2.6.28
+ * onwards. We need to handle both values because the kernel doesn't; it only
+ * expects one of the values, and we need to determine which one at run-time.
+ */
 #define KEY_MAX_LARGE 0x2FF
 #define KEY_MAX_SMALL 0x1FF
 
@@ -45,7 +46,6 @@
 
 /* Button map size. */
 #define BTNMAP_SIZE (KEY_MAX_LARGE - BTN_MISC + 1)
-
 
 /* The following values come from include/joystick.h in the kernel source. */
 #define JSIOCSBTNMAP_LARGE _IOW('j', 0x33, __u16[KEY_MAX_LARGE - BTN_MISC + 1])
@@ -65,21 +65,27 @@ static const char *axis_names[ABS_MAX + 1] =
 
 static const char *button_names[KEY_MAX - BTN_MISC + 1] =
 {
-"Btn0",     "Btn1",     "Btn2",      "Btn3",    "Btn4",     "Btn5",       "Btn6",    "Btn7",     "Btn8",     "Btn9",     "?",         "?",        "?",       "?",         "?",         "?",
-"LeftBtn",  "RightBtn", "MiddleBtn", "SideBtn", "ExtraBtn", "ForwardBtn", "BackBtn", "TaskBtn",  "?",        "?",        "?",         "?",        "?",       "?",         "?",         "?",
-"Trigger",  "ThumbBtn", "ThumbBtn2", "TopBtn",  "TopBtn2",  "PinkieBtn",  "BaseBtn", "BaseBtn2", "BaseBtn3", "BaseBtn4", "BaseBtn5",  "BaseBtn6", "BtnDead",
-"BtnA",     "BtnB",     "BtnC",      "BtnX",    "BtnY",     "BtnZ",       "BtnTL",   "BtnTR",    "BtnTL2",   "BtnTR2",   "BtnSelect", "BtnStart", "BtnMode", "BtnThumbL", "BtnThumbR", "?",
-"?",        "?",        "?",         "?",       "?",        "?",          "?",       "?",        "?",        "?",        "?",         "?",        "?",       "?",         "?",         "?",
-"WheelBtn", "Gear up",
+"Btn0",       "Btn1",     "Btn2",      "Btn3",      "Btn4",      "Btn5",     "Btn6",
+"Btn7",       "Btn8",     "Btn9",      "?",         "?",         "?",        "?",
+"?",          "?",        "LeftBtn",   "RightBtn",  "MiddleBtn", "SideBtn",  "ExtraBtn",
+"ForwardBtn", "BackBtn",  "TaskBtn",   "?",         "?",         "?",        "?",
+"?",          "?",        "?",         "?",         "Trigger",   "ThumbBtn", "ThumbBtn2",
+"TopBtn",     "TopBtn2",  "PinkieBtn", "BaseBtn",   "BaseBtn2",  "BaseBtn3", "BaseBtn4",
+"BaseBtn5",   "BaseBtn6", "BtnDead",   "BtnA",      "BtnB",      "BtnC",     "BtnX",
+"BtnY",       "BtnZ",     "BtnTL",     "BtnTR",     "BtnTL2",    "BtnTR2",   "BtnSelect",
+"BtnStart",   "BtnMode",  "BtnThumbL", "BtnThumbR", "?",         "?",        "?",
+"?",          "?",        "?",         "?",         "?",         "?",        "?",
+"?",          "?",        "?",         "?",         "?",         "?",        "?",
+"WheelBtn",   "Gear up",
 };
 
-CLinuxJoystick::CLinuxJoystick(int fd, unsigned int id, const char *name, unsigned char buttons, unsigned char axes)
-  : m_state(), m_fd(fd)
+CLinuxJoystick::CLinuxJoystick(int fd, unsigned int id, const char *name, const std::string &filename,
+    unsigned char buttons, unsigned char axes) : m_state(), m_fd(fd), m_filename(filename)
 {
   m_state.id          = id;
   m_state.name        = name;
   m_state.buttonCount = std::min(m_state.buttonCount, (unsigned int)buttons);
-  m_state.hatCount    = 0; // TODO: Translate hat buttons into hats
+  m_state.hatCount    = 0; // TODO: Translate axes into hats
   m_state.axisCount   = std::min(m_state.axisCount, (unsigned int)axes);
 }
 
@@ -91,6 +97,7 @@ CLinuxJoystick::~CLinuxJoystick()
 /* static */
 void CLinuxJoystick::Initialize(JoystickArray &joysticks)
 {
+  // TODO: under what circumstances should we read /dev/js0?
   string inputDir("/dev/input");
   DIR *pd = opendir(inputDir.c_str());
   if (pd == NULL)
@@ -115,9 +122,9 @@ void CLinuxJoystick::Initialize(JoystickArray &joysticks)
         continue;
       }
 
-      unsigned char axes = 2;
-      unsigned char buttons = 2;
-      int version = 0x000800;
+      unsigned char axes = 0;
+      unsigned char buttons = 0;
+      int version = 0x000000;
       char name[128] = "Unknown";
 
       if (ioctl(fd, JSIOCGVERSION, &version) < 0 ||
@@ -126,6 +133,14 @@ void CLinuxJoystick::Initialize(JoystickArray &joysticks)
           ioctl(fd, JSIOCGNAME(128), name) < 0)
       {
         CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: failed ioctl() (errno=%d)", errno);
+        close(fd);
+        continue;
+      }
+
+      if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
+      {
+        CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: failed fcntl() (errno=%d)", errno);
+        close(fd);
         continue;
       }
 
@@ -133,41 +148,46 @@ void CLinuxJoystick::Initialize(JoystickArray &joysticks)
       if (version < 0x010000)
       {
         CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: old (0.x) interface is not supported (version=%08x)", version);
+        close(fd);
         continue;
       }
-
-      uint16_t btnmap[BTNMAP_SIZE];
-      uint8_t axmap[AXMAP_SIZE];
-
-      GetButtonMap(fd, btnmap);
-      GetAxisMap(fd, axmap);
 
       CLog::Log(LOGINFO, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: driver version is %d.%d.%d",
           version >> 16, (version >> 8) & 0xff, version & 0xff);
 
-      /* Determine whether the button map is usable. */
-      int btnmapok = 1;
-      for (int i = 0; btnmapok && i < buttons; i++)
+      uint16_t buttonMap[BTNMAP_SIZE];
+      uint8_t axisMap[AXMAP_SIZE];
+
+      if (GetButtonMap(fd, buttonMap) < 0 |
+          GetAxisMap(fd, axisMap) < 0)
       {
-        if (btnmap[i] < BTN_MISC || btnmap[i] > KEY_MAX)
+        CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: can't get button or axis map");
+        // I assume this isn't a fatal error...
+      }
+
+      /* Determine whether the button map is usable. */
+      bool buttonMapOK = true;
+      for (int i = 0; buttonMapOK && i < buttons; i++)
+      {
+        if (buttonMap[i] < BTN_MISC || buttonMap[i] > KEY_MAX)
         {
-          btnmapok = 0;
+          buttonMapOK = false;
           break;
         }
       }
 
-      if (!btnmapok)
+      if (!buttonMapOK)
       {
-        /* btnmap out of range for names. Don't print any. */
-        CLog::Log(LOGINFO, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: XBMC is not fully compatible with your kernel. Unable to retrieve button map!");
-        CLog::Log(LOGINFO, "CLinuxJoystick::Initialize: Joystick \"%s\" has %d buttons and %d axes", name, buttons, axes);
+        /* buttonMap out of range for names. Don't print any. */
+        CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: XBMC is not fully compatible with your kernel. Unable to retrieve button map!");
+        CLog::Log(LOGERROR, "CLinuxJoystick::Initialize: Joystick \"%s\" has %d buttons and %d axes", name, buttons, axes);
       }
       else
       {
         ostringstream strButtons;
         for (int i = 0; i < buttons; i++)
         {
-          strButtons << button_names[btnmap[i] - BTN_MISC];
+          strButtons << button_names[buttonMap[i] - BTN_MISC];
           if (i < buttons - 1)
             strButtons << ", ";
         }
@@ -176,7 +196,7 @@ void CLinuxJoystick::Initialize(JoystickArray &joysticks)
         ostringstream strAxes;
         for (int i = 0; i < axes; i++)
         {
-          strAxes << axis_names[axmap[i]];
+          strAxes << axis_names[axisMap[i]];
           if (i < axes - 1)
             strAxes << ", ";
         }
@@ -184,25 +204,56 @@ void CLinuxJoystick::Initialize(JoystickArray &joysticks)
       }
 
       // Got enough information, time to move on to the next joystick
-      joysticks.push_back(boost::shared_ptr<IJoystick>(new CLinuxJoystick(fd,
-          joysticks.size(), name, buttons, axes)));
+      joysticks.push_back(boost::shared_ptr<IJoystick>(new CLinuxJoystick(fd, joysticks.size(),
+          name, filename, buttons, axes)));
     }
   }
-  (void)closedir(pd);
+  closedir(pd);
+}
+
+/**
+ * Retrieves the current button map in the given array, which must contain at
+ * least BTNMAP_SIZE elements. Returns the result of the ioctl(): negative in
+ * case of an error, 0 otherwise for kernels up to 2.6.30, the length of the
+ * array actually copied for later kernels.
+ */
+int CLinuxJoystick::GetButtonMap(int fd, uint16_t *buttonMap)
+{
+  static int joyGetButtonMapIoctl = 0;
+  int ioctls[] = { JSIOCGBTNMAP, JSIOCGBTNMAP_LARGE, JSIOCGBTNMAP_SMALL, 0 };
+
+  if (joyGetButtonMapIoctl != 0)
+  {
+    /* We already know which ioctl to use. */
+    return ioctl(fd, joyGetButtonMapIoctl, buttonMap);
+  }
+  else
+  {
+    return DetermineIoctl(fd, ioctls, buttonMap, joyGetButtonMapIoctl);
+  }
+}
+
+/**
+ * Retrieves the current axis map in the given array, which must contain at
+ * least AXMAP_SIZE elements.
+ */
+int CLinuxJoystick::GetAxisMap(int fd, uint8_t *axisMap)
+{
+  return ioctl(fd, JSIOCGAXMAP, axisMap);
 }
 
 /* static */
-int CLinuxJoystick::DetermineIoctl(int fd, int *ioctls, int *ioctl_used, void *argp)
+int CLinuxJoystick::DetermineIoctl(int fd, int *ioctls, uint16_t *buttonMap, int &ioctl_used)
 {
   int retval = 0;
 
   /* Try each ioctl in turn. */
-  for (int i = 0; ioctls[i]; i++)
+  for (int i = 0; ioctls[i] != 0; i++)
   {
-    if ((retval = ioctl(fd, ioctls[i], argp)) >= 0)
+    if ((retval = ioctl(fd, ioctls[i], (void*)buttonMap)) >= 0)
     {
       /* The ioctl did something. */
-      *ioctl_used = ioctls[i];
+      ioctl_used = ioctls[i];
       return retval;
     }
     else if (errno != -EINVAL)
@@ -214,44 +265,58 @@ int CLinuxJoystick::DetermineIoctl(int fd, int *ioctls, int *ioctl_used, void *a
   return retval;
 }
 
-/**
- * Retrieves the current button map in the given array, which must contain at
- * least BTNMAP_SIZE elements. Returns the result of the ioctl(): negative in
- * case of an error, 0 otherwise for kernels up to 2.6.30, the length of the
- * array actually copied for later kernels.
- */
-int CLinuxJoystick::GetButtonMap(int fd, uint16_t *btnmap)
-{
-  static int jsiocsbtnmap = 0;
-  int ioctls[] = { JSIOCGBTNMAP, JSIOCGBTNMAP_LARGE, JSIOCGBTNMAP_SMALL, 0 };
-
-  if (jsiocsbtnmap != 0)
-  {
-    /* We already know which ioctl to use. */
-    return ioctl(fd, jsiocsbtnmap, btnmap);
-  }
-  else
-  {
-    return DetermineIoctl(fd, ioctls, &jsiocsbtnmap, btnmap);
-  }
-}
-
-/**
- * Retrieves the current axis map in the given array, which must contain at
- * least AXMAP_SIZE elements. Returns the result of the ioctl(): negative in
- * case of an error, 0 otherwise for kernels up to 2.6.30, the length of the
- * array actually copied for later kernels.
- */
-int CLinuxJoystick::GetAxisMap(int fd, uint8_t *axmap)
-{
-  return ioctl(fd, JSIOCGAXMAP, axmap);
-}
-
 /* static */
 void CLinuxJoystick::DeInitialize(JoystickArray &joysticks)
 {
+  for (int i = 0; i < (int)joysticks.size(); i++)
+  {
+    if (boost::dynamic_pointer_cast<CLinuxJoystick>(joysticks[i]))
+      joysticks.erase(joysticks.begin() + i--);
+  }
 }
 
 void CLinuxJoystick::Update()
 {
+  js_event joyEvent;
+
+  while(true)
+  {
+    // Flush the driver queue
+    if (read(m_fd, &joyEvent, sizeof(joyEvent)) != sizeof(joyEvent))
+    {
+      if (errno == EAGAIN)
+      {
+        // The circular driver queue holds 64 events. If compiling your own driver,
+        // you can increment this size bumping up JS_BUFF_SIZE in joystick.h
+        return;
+      }
+      else
+      {
+        CLog::Log(LOGERROR, /* __FUNCTION__ */ "CLinuxJoystick::Initialize: failed to read joystick \"%s\" on %s",
+            m_state.name.c_str(), m_filename.c_str());
+        return;
+      }
+    }
+
+    // The possible values of joystickEvent.type are:
+    // JS_EVENT_BUTTON    0x01    /* button pressed/released */
+    // JS_EVENT_AXIS      0x02    /* joystick moved */
+    // JS_EVENT_INIT      0x80    /* (flag) initial state of device */
+
+    // We don't differentiate between synthetic (i.e. initial) or real events
+    switch (joyEvent.type & ~JS_EVENT_INIT)
+    {
+    case JS_EVENT_BUTTON:
+      if (joyEvent.number < m_state.buttonCount)
+        m_state.buttons[joyEvent.number] = joyEvent.value;
+      break;
+    case JS_EVENT_AXIS:
+      // TODO: Axis -> hat translation
+      if (joyEvent.number < m_state.axisCount)
+        m_state.axes[joyEvent.number] = joyEvent.value;
+      break;
+    default:
+      break;
+    }
+  }
 }

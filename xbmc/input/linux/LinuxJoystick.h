@@ -36,12 +36,13 @@ public:
   virtual const SJoystick &GetState() const { return m_state; }
 
 private:
-  CLinuxJoystick(int fd, unsigned int id, const char *name, unsigned char buttons, unsigned char axes);
+  CLinuxJoystick(int fd, unsigned int id, const char *name, const std::string &filename, unsigned char buttons, unsigned char axes);
 
-  static int DetermineIoctl(int fd, int *ioctls, int *ioctl_used, void *argp);
-  static int GetButtonMap(int fd, uint16_t *btnmap);
-  static int GetAxisMap(int fd, uint8_t *axmap);
+  static int GetButtonMap(int fd, uint16_t *buttonMap);
+  static int GetAxisMap(int fd, uint8_t *axisMap);
+  static int DetermineIoctl(int fd, int *ioctls, uint16_t *buttonMap, int &ioctl_used);
 
-  SJoystick m_state;
-  int       m_fd;
+  SJoystick   m_state;
+  int         m_fd;
+  std::string m_filename; // for debugging purposes
 };
