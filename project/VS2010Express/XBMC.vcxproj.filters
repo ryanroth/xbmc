@@ -304,8 +304,8 @@
     <Filter Include="dbwrappers\test">
       <UniqueIdentifier>{43dbf5f1-ffdc-4fd5-8f6c-5f38f89b192f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="games\database">
-      <UniqueIdentifier>{811d2295-c206-4480-80fc-08955ddba8fa}</UniqueIdentifier>
+    <Filter Include="games\savegames">
+      <UniqueIdentifier>{42e2939e-467c-4c7f-bb3e-b4860c19e9e0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -3054,11 +3054,11 @@
     <ClCompile Include="..\..\xbmc\dbwrappers\test\TestDynamicDatabase.cpp">
       <Filter>dbwrappers\test</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\xbmc\games\database\SavegameDatabase.cpp">
-      <Filter>games\database</Filter>
+    <ClCompile Include="..\..\xbmc\games\savegames\SavegameDatabase.cpp">
+      <Filter>games\savegames</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\xbmc\games\database\SavegameInfoTag.cpp">
-      <Filter>games\database</Filter>
+    <ClCompile Include="..\..\xbmc\games\savegames\SavegameInfoTag.cpp">
+      <Filter>games\savegames</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -5951,14 +5951,14 @@
     <ClInclude Include="..\..\xbmc\dbwrappers\DynamicDatabase.h">
       <Filter>dbwrappers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xbmc\games\database\SavegameDatabase.h">
-      <Filter>games\database</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\xbmc\games\database\SavegameInfoTag.h">
-      <Filter>games\database</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\xbmc\utils\IDeserializable.h">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\games\savegames\SavegameDatabase.h">
+      <Filter>games\savegames</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\games\savegames\SavegameInfoTag.h">
+      <Filter>games\savegames</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

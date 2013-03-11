@@ -5966,7 +5966,7 @@ msgstr ""
 
 #: xbmc/settings/GUISettings.cpp
 msgctxt "#15021"
-msgid "Enable rewind if the emulator supports it"
+msgid "Enable rewind if supported"
 msgstr ""
 
 #: xbmc/settings/GUISettings.cpp
@@ -5974,7 +5974,22 @@ msgctxt "#15023"
 msgid "Maximum rewind time"
 msgstr ""
 
-#empty strings from id 15024 to 15051
+#: xbmc/settings/GUISettings.cpp
+msgctxt "#15024"
+msgid "Automatically load previous game state"
+msgstr ""
+
+#: xbmc/settings/GUISettings.cpp
+msgctxt "#15025"
+msgid "Save game state every 30 seconds"
+msgstr ""
+
+#: xbmc/settings/GUISettings.cpp
+msgctxt "#15026"
+msgid "Auto-save game state every 30 seconds"
+msgstr ""
+
+#empty strings from id 15027 to 15051
 
 msgctxt "#15052"
 msgid "Password"

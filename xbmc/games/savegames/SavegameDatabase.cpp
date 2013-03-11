@@ -23,8 +23,6 @@
 #include "dbwrappers/dataset.h"
 #include "dialogs/GUIDialogProgress.h"
 #include "settings/AdvancedSettings.h"
-//#include "threads/SystemClock.h"
-//#include "utils/JSONVariantParser.h"
 #include "utils/log.h"
 //#include "utils/StringUtils.h"
 #include "utils/URIUtils.h"

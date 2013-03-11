@@ -24,7 +24,7 @@
 #include <string>
 #include <set>
 
-//class CPictureInfoTag;
+class CSavegameInfoTag;
 class CFileItem;
 class CGUIDialogProgress;
 

@@ -234,6 +234,16 @@ namespace ADDON
     void RunFrame();
 
     /**
+     * Load the serialized state from the local drive.
+     */
+    bool Load();
+
+    /**
+     * Commit the current serialized state to the local drive.
+     */
+    bool Save();
+
+    /**
      * Rewind gameplay 'frames' frames.
      * As there is a fixed size buffer backing
      * save state deltas, it might not be possible to rewind as many
@@ -281,6 +291,7 @@ namespace ADDON
     GameClientDLL    m_dll;
     bool             m_bIsInited; // Keep track of whether m_dll.retro_init() has been called
     bool             m_bIsPlaying; // This is true between retro_load_game() and retro_unload_game()
+    CStdString       m_strPath; // path of the current playing file
 
     // Returned by m_dll:
     CStdString       m_clientName;

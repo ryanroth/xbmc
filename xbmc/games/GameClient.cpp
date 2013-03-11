@@ -537,6 +537,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
     return false;
 
   m_bIsPlaying = true;
+  m_strPath = file.GetPath();
 
   // Get information about system audio/video timings and geometry
   // Can be called only after retro_load_game()
@@ -552,7 +553,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
   double sampleRate       = av_info.timing.sample_rate; // 32040.5 or 31997.222656
 
   CLog::Log(LOGINFO, "GameClient: ---------------------------------------");
-  CLog::Log(LOGINFO, "GameClient: Opened file %s", file.GetPath().c_str());
+  CLog::Log(LOGINFO, "GameClient: Opened file %s", m_strPath.c_str());
   CLog::Log(LOGINFO, "GameClient: Base Width: %u", baseWidth);
   CLog::Log(LOGINFO, "GameClient: Base Height: %u", baseHeight);
   CLog::Log(LOGINFO, "GameClient: Max Width: %u", maxWidth);
@@ -565,27 +566,41 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
   m_frameRate = fps;
   m_sampleRate = sampleRate;
 
-  // Check if save states are supported, so rewind can be used.
+  // Check if save states are supported, so savestates and rewind can be used.
+  m_rewindSupported = false;
   size_t state_size = m_dll.retro_serialize_size();
-  m_rewindSupported = state_size && g_guiSettings.GetBool("games.enablerewind");
-  if (m_rewindSupported)
+  if (state_size)
   {
-    m_serialState.Init(state_size, (size_t)(g_guiSettings.GetInt("games.rewindtime") * m_frameRate));
-    if (!m_dll.retro_serialize(m_serialState.GetState(), m_serialState.GetFrameSize()))
+    m_rewindSupported = g_guiSettings.GetBool("games.enablerewind");
+    if (g_guiSettings.GetBool("games.savestates"))
     {
-      m_rewindSupported = false;
-      CLog::Log(LOGINFO, "GameClient: Unable to serialize state, proceeding without rewind");
+      // Load previous savestate if possible
+      if (!Load() && m_rewindSupported)
+      {
+        CLog::Log(LOGDEBUG, "GameClient: Failed to load last savestate, forcing rewind to off");
+        m_rewindSupported = false;
+      }
     }
-    else
+    // Set up rewind functionality
+    if (m_rewindSupported)
     {
-      CLog::Log(LOGINFO, "GameClient: Rewind is enabled");
+      m_serialState.Init(state_size, (size_t)(g_guiSettings.GetInt("games.rewindtime") * m_frameRate));
 
-      // Load save and auto state
+      if (m_dll.retro_serialize(m_serialState.GetState(), m_serialState.GetFrameSize()))
+      {
+        CLog::Log(LOGDEBUG, "GameClient: Rewind is enabled");
+      }
+      else
+      {
+        m_rewindSupported = false;
+        m_serialState.Reset();
+        CLog::Log(LOGDEBUG, "GameClient: Unable to serialize state, proceeding without rewind");
+      }
     }
   }
   else
   {
-    CLog::Log(LOGINFO, "GameClient: Rewind support is not enabled");
+    CLog::Log(LOGINFO, "GameClient: Game serialization not supported");
   }
 
   // Query the game region
@@ -669,6 +684,23 @@ void CGameClient::RunFrame()
       }
     }
   }
+}
+
+bool CGameClient::Load()
+{
+  CLog::Log(LOGINFO, "GameClient: Loading last savestate");
+
+  // Get savestate URL
+
+  // Deserialize
+
+  return m_dll.retro_serialize_size() > 0;
+}
+
+bool CGameClient::Save()
+{
+  CLog::Log(LOGINFO, "GameClient: Loading last savestate");
+  return true;
 }
 
 unsigned int CGameClient::RewindFrames(unsigned int frames)

@@ -1013,7 +1013,9 @@ void CGUISettings::Initialize()
   CSettingsCategory* gamesGen = AddCategory(SETTINGS_GAMES, "games", 16000); // General
   // Audio delay (ms), lower values might cause buffer underruns
   AddInt(NULL, "games.audiodelay", 15017, 500, 0, 50, 1000, SPIN_CONTROL_INT_PLUS, MASK_MS); // Audio delay
-  AddBool(gamesGen, "games.enablerewind", 15021, true); // Enable rewind if the emulator supports it
+  AddBool(gamesGen, "games.savestates", 15024, true); // Automatically load previous game state if supported
+  AddBool(gamesGen, "games.autosave", 15025, true); // Save game state every 30 seconds
+  AddBool(gamesGen, "games.enablerewind", 15021, true); // Enable rewind if supported
   AddInt(gamesGen, "games.rewindtime", 15023, 60, 0, 10, 600, SPIN_CONTROL_INT_PLUS, MASK_SECS); // Maximum rewind time
   AddSeparator(gamesGen, "games.sep1");
   AddString(gamesGen, "games.manageaddons", 24025, "", BUTTON_CONTROL_STANDARD); // Manage emulators...
