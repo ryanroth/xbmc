@@ -19,19 +19,24 @@
  *
  */
 
+#define USE_BSON
+
 #include "DynamicDatabase.h"
-#include "threads/SystemClock.h"
-#include "utils/Base64.h"
-#include "utils/IDBInfoTag.h"
+#include "FileItem.h"
+#include "utils/IDeserializable.h"
+#include "utils/ISerializable.h"
+#ifdef USE_BSON
+#include "utils/BSONVariantParser.h"
+#include "utils/BSONVariantWriter.h"
+#else
 #include "utils/JSONVariantParser.h"
 #include "utils/JSONVariantWriter.h"
+#endif
 #include "utils/log.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
-#include "FileItem.h"
 #include "URL.h"
 
-#include <map>
 #include <queue>
 
 using namespace std;
@@ -152,71 +157,6 @@ string CDynamicDatabase::PrepareVariant(const CVariant &value, const string &typ
   else
     // Probably a datetime. Interpret as a string for now
     return PrepareSQL("'%s'", value.asString().c_str()).c_str();
-}
-
-string CDynamicDatabase::PrepareIterator(const bson_iterator *it, const string &type)
-{
-  if (!it)
-    return "";
-  bson_type itType = bson_iterator_type(it);
-  if (IsInteger(type) || IsBool(type))
-  {
-    if (itType == BSON_INT)
-      return PrepareSQL("%i", bson_iterator_int(it)).c_str();
-    if (itType == BSON_LONG)
-      return PrepareSQL("%i", bson_iterator_long(it)).c_str();
-    if (itType == BSON_BOOL)
-      return PrepareSQL("%i", bson_iterator_bool(it)).c_str(); // bson_iterator_bool() returns int
-  }
-  else if (IsFloat(type) && itType == BSON_DOUBLE)
-    return PrepareSQL("%f", bson_iterator_double(it)).c_str();
-  else if (IsText(type) && itType == BSON_STRING)
-    return PrepareSQL("'%s'", bson_iterator_string(it)).c_str();
-  else if (itType == BSON_STRING)
-    // Column is probably a datetime. Interpret as a string for now
-    return PrepareSQL("'%s'", bson_iterator_string(it)).c_str();
-  return ""; // invalid input
-}
-
-/* static */
-CVariant CDynamicDatabase::GetField(const bson *object, const string &field)
-{
-  if (!object)
-    return CVariant();
-
-  bson_iterator it[1];
-  bson_type type;
-
-  type = bson_find(it, object, field.c_str());
-  switch (type)
-  {
-  case BSON_INT:
-    return CVariant(bson_iterator_int(it));
-  case BSON_LONG:
-    return CVariant(bson_iterator_long(it));
-  case BSON_BOOL:
-    return CVariant(bson_iterator_bool(it)); // Note: VariantTypeInteger
-  case BSON_DOUBLE:
-    return CVariant(bson_iterator_double(it));
-  case BSON_STRING:
-    return CVariant(bson_iterator_string(it));
-  default:
-    return CVariant();
-  }
-}
-
-/* static */
-void CDynamicDatabase::DeserializeBSON(const string &strBson64, int id, IDBInfoTag *obj)
-{
-  // Decode base64
-  string output;
-  Base64::Decode(strBson64, output);
-
-  bson document[1];
-  bson_init_finished_data(document, const_cast<char*>(output.c_str())); // doesn't require bson_destroy()
-
-  // Deserialize BSON data polymorphically
-  obj->Deserialize(document, id);
 }
 
 void CDynamicDatabase::CreateIndex(const string &table, const string &column, bool isFK)
@@ -406,17 +346,14 @@ void CDynamicDatabase::AddIndexInternal(const char *column, const char *type)
   {
     while (!m_pDS->eof())
     {
-      string output;
-      Base64::Decode(m_pDS->fv(1).get_asString(), output);
+#ifdef USE_BSON
+      CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(1).get_asString());
+#else
+      const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
+      CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
+#endif
 
-      bson document[1];
-      bson_init_finished_data(document, const_cast<char*>(output.c_str())); // doesn't require bson_destroy()
-
-      bson_iterator it[1];
-      if (bson_find(it, document, column) == BSON_EOO)
-        continue;
-
-      string value = PrepareIterator(it, type);
+      string value = PrepareVariant(var[column], type);
       if (value.empty() || value == "''")
         continue;
 
@@ -540,17 +477,14 @@ void CDynamicDatabase::AddOneToManyInternal(const char *column, const char *type
       // Need to resolve a string into a foreign key ID
       int fkId;
 
-      string output;
-      Base64::Decode(m_pDS->fv(1).get_asString(), output);
+#ifdef USE_BSON
+      CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(1).get_asString());
+#else
+      const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
+      CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
+#endif
 
-      bson document[1];
-      bson_init_finished_data(document, const_cast<char*>(output.c_str())); // doesn't require bson_destroy()
-
-      bson_iterator it[1];
-      if (bson_find(it, document, column) == BSON_EOO)
-        continue;
-
-      string value = PrepareIterator(it, type);
+      string value = PrepareVariant(var[column], type);
       if (value.empty() || value == "''")
         continue;
 
@@ -752,46 +686,32 @@ void CDynamicDatabase::AddManyToManyInternal(const char *column, const char *typ
   {
     while (!m_pDS->eof())
     {
-      string output;
-      Base64::Decode(m_pDS->fv(1).get_asString(), output);
+#ifdef USE_BSON
+      CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(1).get_asString());
+#else
+      const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
+      CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
+#endif
 
-      bson document[1];
-      bson_init_finished_data(document, const_cast<char*>(output.c_str())); // doesn't require bson_destroy()
-
-      bson_iterator it[1],  subit[1];
-      bson_type     itType, subtype;
-      itType = bson_find(it, document, column);
-
-      vector<bson_iterator> items;
-      switch (itType)
+      CVariant varColumnValues = var[column];
+      vector<CVariant> items;
+      if (varColumnValues.isDouble() ||
+          varColumnValues.isString() ||
+          varColumnValues.isWideString() ||
+          varColumnValues.isBoolean() ||
+          varColumnValues.isInteger() ||
+          varColumnValues.isUnsignedInteger())
       {
-      // Promote simple types to array
-      case BSON_DOUBLE:
-      case BSON_STRING:
-      case BSON_BOOL:
-      case BSON_INT:
-      case BSON_LONG:
-        items.push_back(*it);
-        break;
-      case BSON_ARRAY:
-        {
-          bson_iterator_subiterator(it, subit);
-          subtype = bson_iterator_next(subit);
-          while (subtype != BSON_EOO)
-          {
-            items.push_back(*subit); // if subit is an invalid type, it will be ignored
-            subtype = bson_iterator_next(subit);
-          }
-        }
-        break;
-      default: // BSON_OBJECT, BSON_EOO, etc.
-        continue;
+        // Promote simple types to array
+        CVariant temp;
+        temp.push_back(varColumnValues);
+        varColumnValues.swap(temp);
       }
 
       // Each item needs its own entry in its table and link in the link table
-      for (vector<bson_iterator>::const_iterator itemIt = items.begin(); itemIt != items.end(); itemIt++)
+      for (CVariant::const_iterator_array itemIt = items.begin(); itemIt != items.end(); itemIt++)
       {
-        string value = PrepareIterator(&(*itemIt), type);
+        string value = PrepareVariant(&(*itemIt), type);
         if (value.empty() || value == "''")
           continue;
 
@@ -867,7 +787,7 @@ void CDynamicDatabase::DropManyToManyInternal(const char *column, bool tempDrop 
   m_pDS->exec(strSQL.c_str());
 }
 
-int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */)
+int CDynamicDatabase::AddObject(const ISerializable *obj, bool bUpdate /* = true */)
 {
   if (!obj) return -1;
   if (NULL == m_pDB.get()) return -1;
@@ -877,21 +797,18 @@ int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */
   bool bExists = false;
   int idObject;
 
-  bson document[1];
+  CVariant var;
 
   try
   {
-    obj->Serialize(document); // requires bson_destroy()
+    obj->Serialize(var);
 
-    if (!IsValid(document))
-      return -1;
-
-    idObject = obj->GetID();
+    idObject = var["databaseid"].asInteger(-1);
 
     // If we weren't given a database ID, check now to see if the item exists
     // in the database (if bExists is true, result is stored in idObject)
     if (idObject == -1)
-      bExists = Exists(document, idObject);
+      bExists = Exists(var, idObject);
 
     // The music database uses REPLACE INTO to update objects. Internally, MySQL
     // does a DELETE and re-INSERT, which causes the FKs in the other tables to
@@ -909,25 +826,17 @@ int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */
       // Extract values for indexed fields
       map<string, string> indices; // column -> value (formatted for VALUES() statement)
       for (vector<Item>::const_iterator it = m_indices.begin(); it != m_indices.end(); it++)
-      {
-        bson_iterator objectIt;
-        if (BSON_EOO != bson_find(&objectIt, document, it->name.c_str()))
-          indices[it->name] = PrepareIterator(&objectIt, it->type);
-      }
+        indices[it->name] = PrepareVariant(var[it->name], it->type);
 
       // Extract values for one-to-many links and add them to the database
       map<string, int> idItems; // field -> idValue (id of parent)
       for (vector<Item>::const_iterator it = m_singleLinks.begin(); it != m_singleLinks.end(); it++)
       {
-        bson_iterator objectIt;
-        if (BSON_EOO != bson_find(&objectIt, document, it->name.c_str()))
+        int valueIndex = AddOneToManyItem(it->name, it->type, var[it->name]);
+        if (valueIndex != -1)
         {
-          int valueIndex = AddOneToManyItem(it->name, it->type, objectIt);
-          if (valueIndex != -1)
-          {
-            // Found the FK of an item
-            idItems[it->name] = valueIndex;
-          }
+          // Found the FK of an item
+          idItems[it->name] = valueIndex;
         }
       }
 
@@ -940,7 +849,12 @@ int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */
         VALUES = "NULL";
 
       COLUMNS += ", strContentBSON64";
-      VALUES += PrepareSQL(", '%s'", Base64::Encode(bson_data(document), bson_size(document)).c_str());
+
+#ifdef USE_BSON
+      VALUES += PrepareSQL(", '%s'", CBSONVariantWriter::WriteBase64(var).c_str());
+#else
+      VALUES += PrepareSQL(", '%s'", CJSONVariantWriter::Write(var, true).c_str());
+#endif
 
       // Add the indexed pairs (this keeps our indexed values in sync)
       for (map<string, string>::const_iterator it = indices.begin(); it != indices.end(); it++)
@@ -969,21 +883,15 @@ int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */
       // above, this may lead orphaned sibblings, requiring a prune function.
       for (vector<Item>::const_iterator it = m_multiLinks.begin(); it != m_multiLinks.end(); it++)
       {
-        bson_iterator objectIt, subIt;
-        bson_type subtype;
-
-        // Only arrays can be used for multi-links
-        if (bson_find(&objectIt, document, it->name.c_str()) != BSON_ARRAY)
+        CVariant multiValue = var[it->name];
+        if (!multiValue.isArray())
           continue;
 
-        bson_iterator_subiterator(&objectIt, &subIt);
-        subtype = bson_iterator_next(&subIt);
-        while (subtype != BSON_EOO)
+        for (CVariant::const_iterator_array it2 = multiValue.begin_array(); it2 != multiValue.end_array(); it2++)
         {
-          int idItem = AddOneToManyItem(it->name, it->type, subIt);
+          int idItem = AddOneToManyItem(it->name, it->type, *it2);
           if (idItem >= 0)
             AddLink(it->name, idObject, idItem);
-          subtype = bson_iterator_next(&subIt);
         }
       }
     }
@@ -994,15 +902,14 @@ int CDynamicDatabase::AddObject(const IDBInfoTag *obj, bool bUpdate /* = true */
     CLog::Log(LOGERROR, "%s - Unable to add object. SQL: %s", __FUNCTION__, strSQL.c_str());
   }
 
-  bson_destroy(document);
   return idObject;
 }
 
 // If the type is not known, call GetType(item) and pass the result to this function
 // parent is the parent table referenced by e.g. the "idparent" column
-int CDynamicDatabase::AddOneToManyItem(const string &parent, const string &type, bson_iterator &it)
+int CDynamicDatabase::AddOneToManyItem(const string &parent, const string &type, const CVariant &var)
 {
-  string value = PrepareIterator(&it, type);
+  string value = PrepareVariant(var, type);
   if (value.empty() || value == "''")
     return -1;
 
@@ -1081,7 +988,7 @@ string CDynamicDatabase::GetType(const string &column)
   return it->type;
 }
 
-bool CDynamicDatabase::GetObjectByID(int idObject, IDBInfoTag *obj)
+bool CDynamicDatabase::GetObjectByID(int idObject, IDeserializable *obj)
 {
   if (NULL == m_pDB.get()) return false;
   if (NULL == m_pDS.get()) return false;
@@ -1096,7 +1003,16 @@ bool CDynamicDatabase::GetObjectByID(int idObject, IDBInfoTag *obj)
     {
       if (m_pDS->num_rows() != 0)
       {
-        DeserializeBSON(m_pDS->fv(0).get_asString(), idObject, obj);
+#ifdef USE_BSON
+        CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(0).get_asString());
+#else
+        const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(0).get_asString().c_str());
+        CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(0).get_asString().size());
+#endif
+        // TODO: necessary?
+        var["databaseid"] = idObject;
+        obj->Deserialize(var);
+
         m_pDS->close(); // cleanup recordset data
         return true;
       }
@@ -1110,7 +1026,7 @@ bool CDynamicDatabase::GetObjectByID(int idObject, IDBInfoTag *obj)
   return false;
 }
 
-bool CDynamicDatabase::GetObjectByIndex(const string &column, const CVariant &value, IDBInfoTag *obj)
+bool CDynamicDatabase::GetObjectByIndex(const string &column, const CVariant &value, IDeserializable *obj)
 {
   if (NULL == m_pDB.get()) return false;
   if (NULL == m_pDS.get()) return false;
@@ -1141,7 +1057,16 @@ bool CDynamicDatabase::GetObjectByIndex(const string &column, const CVariant &va
     {
       if (m_pDS->num_rows() != 0)
       {
-        DeserializeBSON(m_pDS->fv(1).get_asString(), m_pDS->fv(0).get_asInt(), obj);
+#ifdef USE_BSON
+        CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(1).get_asString());
+#else
+        const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
+        CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
+#endif
+        // TODO: necessary?
+        var["databaseid"] = m_pDS->fv(0).get_asInt();
+        obj->Deserialize(var);
+
         m_pDS->close();
         return true;
       }
@@ -1216,7 +1141,15 @@ bool CDynamicDatabase::GetObjectsNav(CFileItemList &items, const map<string, lon
       {
         // Use the CreateFileItem() callback provided by the subclass to instantiate the object
         CFileItemPtr pItem;
-        pItem = CFileItemPtr(CreateFileItem(m_pDS->fv(1).get_asString(), m_pDS->fv(0).get_asInt()));
+
+#ifdef USE_BSON
+        CVariant var = CBSONVariantParser::ParseBase64(m_pDS->fv(1).get_asString());
+#else
+        const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
+        CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
+#endif
+
+        pItem = CFileItemPtr(CreateFileItem(var, m_pDS->fv(0).get_asInt()));
         items.Add(pItem);
         m_pDS->next();
       }

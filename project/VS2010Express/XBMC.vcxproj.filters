@@ -5951,14 +5951,14 @@
     <ClInclude Include="..\..\xbmc\dbwrappers\DynamicDatabase.h">
       <Filter>dbwrappers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xbmc\utils\IDBInfoTag.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\xbmc\games\database\SavegameDatabase.h">
       <Filter>games\database</Filter>
     </ClInclude>
     <ClInclude Include="..\..\xbmc\games\database\SavegameInfoTag.h">
       <Filter>games\database</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\xbmc\utils\IDeserializable.h">
+      <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

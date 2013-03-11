@@ -1146,7 +1146,7 @@
     <ClInclude Include="..\..\xbmc\settings\windows\GUIWindowTestPattern.h" />
     <ClInclude Include="..\..\xbmc\utils\BSONVariantParser.h" />
     <ClInclude Include="..\..\xbmc\utils\BSONVariantWriter.h" />
-    <ClInclude Include="..\..\xbmc\utils\IDBInfoTag.h" />
+    <ClInclude Include="..\..\xbmc\utils\IDeserializable.h" />
     <ClInclude Include="..\..\xbmc\video\FFmpegVideoDecoder.h" />
     <ClInclude Include="..\..\xbmc\interfaces\python\swig.h" />
     <ClInclude Include="..\..\xbmc\interfaces\python\XBPython.h" />

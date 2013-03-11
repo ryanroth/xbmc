@@ -23,14 +23,12 @@
 #include "Database.h"
 #include "dataset.h"
 
-#include "system.h"
-#include "lib/bson/src/bson.h"
-
 #include <string>
 #include <vector>
 #include <map>
 
-class IDBInfoTag;
+class ISerializable;
+class IDeserializable;
 class CVariant;
 class CFileItem;
 class CFileItemList;
@@ -39,9 +37,10 @@ class CFileItemList;
  * CDynamicDatabase: denormalized database with dynamic normalization
  *
  * Data is denormalized by providing a flat table to store an object ID and the
- * Bas64-encoded BSON serialization of an IDBInfoTag. This flat table can be
- * augmented by specifying relationships between the object's fields. These
- * relationships are specified in the subclass's constructor:
+ * Bas64-encoded BSON serialization of a CVariant from an ISerializable object.
+ * This flat table can be augmented by specifying relationships between the
+ * object's fields. These relationships are specified in the subclass's
+ * constructor:
  *
  * BeginDeclarations();
  * DeclareIndex("title", "VARCHAR(50)");
@@ -71,16 +70,18 @@ public:
   const char *Describe() const { return m_table; }
 
   /*!
-   * If the item exists and bUpdate is false, no changes are made and the ID is returned.
+   * If the item exists and bUpdate is false, no changes are made and the ID is
+   * returned.
    * @return database ID of obj, -1 on failure
    */
-  int  AddObject(const IDBInfoTag *obj, bool bUpdate = true);
+  int  AddObject(const ISerializable *obj, bool bUpdate = true);
 
-  bool GetObjectByID(int idObject, IDBInfoTag *obj);
-  bool GetObjectByIndex(const std::string &column, const CVariant &value, IDBInfoTag *obj);
+  bool GetObjectByID(int idObject, IDeserializable *obj);
+  bool GetObjectByIndex(const std::string &column, const CVariant &value, IDeserializable *obj);
 
   /*!
-   * @param predicates A 1:N or N:N condition, item -> ID map, e.g. "year" -> 5 becomes WHERE idyear=5
+   * @param predicates A 1:N or N:N condition, item -> ID map, e.g. "year" -> 5
+   * becomes WHERE idyear=5
    * Only intersection (AND) is supported, no union (OR) or complement (NOT) yet
    */
   bool GetObjectsNav(CFileItemList &items, const std::map<std::string, long> &predicates = std::map<std::string, long>());
@@ -90,7 +91,8 @@ public:
 
   /*!
    * @param column A 1:N or N:N item
-   * @param predicates A 1:N or N:N condition, item -> ID map, e.g. "year" -> 5 becomes WHERE idyear=5
+   * @param predicates A 1:N or N:N condition, item -> ID map, e.g. "year" -> 5
+   * becomes WHERE idyear=5
    * Only intersection (AND) is supported, no union (OR) or complement (NOT) yet
    */
   bool GetItemNav(const char *column, CFileItemList &items, const std::string &strPath,
@@ -104,11 +106,6 @@ public:
    */
   bool DeleteObject(int idObject, bool deleteOrphans = true);
 
-  /*!
-   * Retrieve a field by key from the root level of a BSON document.
-   */
-  static CVariant GetField(const bson *object, const std::string &field);
-
 protected:
   /*!
    * Set up the tables using the relations declared in the subclass's constructor.
@@ -121,15 +118,15 @@ protected:
    * "databaseid" field is set, that ID is used and Exist() is not called.
    * @throw dbiplus::DbErrors
    */
-  virtual bool Exists(const bson *object, int &idObject) = 0;
-  virtual bool IsValid(const bson *object) const = 0;
+  virtual bool Exists(const CVariant &object, int &idObject) = 0;
+  virtual bool IsValid(const CVariant &object) const = 0;
   
   /*!
    * Callback invoked by GetObjectsNav() to instantiate the database object and
    * construct a CFileItem.
    * @return CFileItem allocated on the heap.
    */
-  virtual CFileItem *CreateFileItem(const std::string &strBson, int id) const = 0;
+  virtual CFileItem *CreateFileItem(const CVariant &object, int id) const = 0;
 
   /*!
    * Helper functions to avoid "FK_%s_%s_%s" games.
@@ -151,15 +148,13 @@ protected:
   static inline bool IsBool(CStdString type);
   static inline bool IsInteger(CStdString type);
   static    CVariant FieldAsVarient(const dbiplus::field_value &fv, const std::string &type);
-  static        void DeserializeBSON(const std::string &strBson64, int id, IDBInfoTag *obj);
 
   /*!
-   * Turn a variant or BSON iterator into a SQL value, quoted where appropriate
-   * (e.g. "1" and "'string'").
-   * @return "" if iterator is invalid, "''" if iterator/CVariant string is empty
+   * Turn a variant into a SQL value, quoted where appropriate (e.g. "1" and
+   * "'string'").
+   * @return "''" if CVariant string is empty
    */
   std::string PrepareVariant(const CVariant &value, const std::string &type);
-  std::string PrepareIterator(const bson_iterator *it, const std::string &type);
 
   /*!
    * Call this before the other Declare*() functions.
@@ -193,7 +188,7 @@ protected:
    * Internal helper functions to add items to parent tables and link tables.
    * @throw dbiplus::DbErrors
    */
-  int  AddOneToManyItem(const std::string &parent, const std::string &type, bson_iterator &it);
+  int  AddOneToManyItem(const std::string &parent, const std::string &type, const CVariant &var);
   void AddLink(const std::string &item, int idObject, int idItem);
 
   std::string GetType(const std::string &column);

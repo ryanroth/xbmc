@@ -19,17 +19,11 @@
  *
  */
 
-#include "system.h"
-#include "lib/bson/src/bson.h"
+class CVariant;
 
-class IDBInfoTag
+class IDeserializable
 {
 public:
-  virtual void Serialize(bson *document) const = 0;
-  virtual void Deserialize(const bson *document, int dbId) = 0;
-
-  // Returns -1 if unknown or invalid
-  virtual int GetID() const = 0;
-
-  virtual ~IDBInfoTag() { }
+  virtual void Deserialize(const CVariant& value) = 0;
+  virtual ~IDeserializable() { }
 };
