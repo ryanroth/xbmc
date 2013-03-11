@@ -29,6 +29,7 @@ class CSavegameInfoTag : public ISerializable, public IDeserializable
 {
 public:
   CSavegameInfoTag() { Reset(); }
+  CSavegameInfoTag(const CVariant &object);
   void Reset();
   CSavegameInfoTag(const CSavegameInfoTag &other) { *this = other; }
   const CSavegameInfoTag& operator=(const CSavegameInfoTag &rhs);

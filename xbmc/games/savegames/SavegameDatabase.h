@@ -21,13 +21,6 @@
 
 #include "dbwrappers/DynamicDatabase.h"
 
-#include <string>
-#include <set>
-
-class CSavegameInfoTag;
-class CFileItem;
-class CGUIDialogProgress;
-
 class CSavegameDatabase : public CDynamicDatabase
 {
 public:
@@ -36,15 +29,7 @@ public:
 
   virtual bool Open();
 
-  bool HasPictures() { return Count() != 0; }
-
-  bool GetPaths(std::set<std::string> &paths);
-  bool GetPathHash(const std::string &strDirectory, std::string &dbHash);
-  bool SetPathHash(const std::string &strDirectory, const std::string &dbHash);
-  bool HasPath(const std::string &strPath);
-
-  bool GetPicturesByPath(const std::string &path, std::vector<CSavegameInfoTag> &pictures);
-  bool DeletePicturesByPath(const std::string &path, bool recurseive, CGUIDialogProgress* pDialogProgress = NULL);
+  bool HasSavestates() { return Count() != 0; }
 
 protected:
   virtual int GetMinVersion() const { return 1; }
@@ -54,11 +39,11 @@ protected:
   virtual bool UpdateOldVersion(int version);
 
   /*!
-   * Uniqueness is quantified by file name and path.
+   * Uniqueness is quantified by path
    * @throw dbiplus::DbErrors
    */
-  virtual bool Exists(const bson *object, int &idObject);
-  virtual bool IsValid(const bson *object) const;
+  virtual bool Exists(const CVariant &object, int &idObject);
+  virtual bool IsValid(const CVariant &object) const;
 
-  virtual CFileItem *CreateFileItem(const std::string &strBson, int id) const;
+  virtual CFileItem *CreateFileItem(const CVariant &object, int id) const;
 };

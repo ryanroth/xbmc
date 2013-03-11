@@ -33,6 +33,11 @@ void CSavegameInfoTag::Reset()
   m_playtimeWallClock = 0.0;
 }
 
+CSavegameInfoTag::CSavegameInfoTag(const CVariant &object)
+{
+  Deserialize(object);
+}
+
 const CSavegameInfoTag& CSavegameInfoTag::operator=(const CSavegameInfoTag& rhs)
 {
   if (this != &rhs)

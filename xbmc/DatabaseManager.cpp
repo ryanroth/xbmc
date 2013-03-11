@@ -27,7 +27,7 @@
 #include "video/VideoDatabase.h"
 #include "pvr/PVRDatabase.h"
 #include "epg/EpgDatabase.h"
-#include "games/database/SavegameDatabase.h"
+#include "games/savegames/SavegameDatabase.h"
 #include "settings/AdvancedSettings.h"
 
 using namespace std;
