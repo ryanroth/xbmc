@@ -21,10 +21,8 @@
 
 #include "Variant.h"
 
-namespace std
-{
-  class string;
-}
+#include <string>
+
 enum bson_type;
 struct bson_iterator;
 

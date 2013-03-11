@@ -50,6 +50,8 @@ vector<const char> CBSONVariantWriter::Write(const CVariant &value)
 
 void CBSONVariantWriter::Write(const CVariant &value, vector<const char> &output)
 {
+  output.clear();
+
   bson document[1];
   bson_init(document);
 
@@ -88,7 +90,6 @@ void CBSONVariantWriter::Write(const CVariant &value, vector<const char> &output
     output = vector<const char>(bson_data(document), bson_data(document) + bson_size(document));
   }
   bson_destroy(document);
-  return output;
 }
 
 bool CBSONVariantWriter::InternalWrite(bson *document, const char *name, const CVariant &value)
