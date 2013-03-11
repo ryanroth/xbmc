@@ -101,7 +101,7 @@ enum bson_binary_subtype_t {
     BSON_BIN_USER = 128
 };
 
-typedef enum {
+typedef enum bson_type {
     BSON_EOO = 0,
     BSON_DOUBLE = 1,
     BSON_STRING = 2,
@@ -125,7 +125,7 @@ typedef enum {
 
 typedef int bson_bool_t;
 
-typedef struct {  
+typedef struct bson_iterator {
 #ifdef MONGO_MEMORY_PROTECTION
     int mongo_sig; /** MONGO_SIGNATURE to validate object for memory corruption */
 #endif
@@ -139,7 +139,7 @@ typedef struct {
   #define INIT_ITERATOR {NULL, 0}
 #endif
 
-typedef struct {
+typedef struct bson {
 #ifdef MONGO_MEMORY_PROTECTION
     int mongo_sig; /** MONGO_SIGNATURE to validate object for memory corruption */
 #endif
