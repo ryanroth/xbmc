@@ -82,6 +82,7 @@ private:
    */
   bool VerifyPath() const;
 
+  // If we consider writing header information to ROM files (using BSON most favorably)
   static const unsigned int VERSION = 1;
 
   mutable CStdString m_path;

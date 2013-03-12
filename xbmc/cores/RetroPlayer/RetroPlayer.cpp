@@ -33,6 +33,7 @@
 #include "guilib/GUIWindowManager.h"
 #include "guilib/Key.h"
 #include "settings/GUISettings.h"
+#include "threads/SystemClock.h" // Should time tracking be in GameClient.cpp?
 #include "URL.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
@@ -429,6 +430,8 @@ void CRetroPlayer::Process()
 
   m_video.GoForth(framerate, m_PlayerOptions.fullscreen);
 
+  unsigned int saveTimer = XbmcThreads::SystemClockMillis();
+
   const double frametime = 1000 * 1000 / framerate; // microseconds
   double nextpts = CDVDClock::GetAbsoluteClock() + frametime;
   CLog::Log(LOGDEBUG, "RetroPlayer: Beginning loop de loop");
@@ -436,11 +439,19 @@ void CRetroPlayer::Process()
   {
     if (m_playSpeed == PLAYSPEED_PAUSED)
     {
+      // Now is a good time to auto-save
+      if (g_guiSettings.GetBool("games.autosave"))
+        m_gameClient->Save();
+
       // No need to pause audio or video, the absence of frames will pause it
       // 1s should be a good failsafe if the event isn't triggered (shouldn't happen)
       m_pauseEvent.WaitMSec(1000);
+
       // Reset the clock
       nextpts = CDVDClock::GetAbsoluteClock() + frametime;
+
+      if (g_guiSettings.GetBool("games.autosave"))
+        saveTimer = XbmcThreads::SystemClockMillis();
       continue;
     }
     else if (m_playSpeed < PLAYSPEED_PAUSED)
@@ -454,6 +465,13 @@ void CRetroPlayer::Process()
 
     // If the game client uses single frame audio, render those now
     m_audio.Flush();
+
+    if (g_guiSettings.GetBool("games.autosave") &&
+      XbmcThreads::SystemClockMillis() - saveTimer > 30000) // every 30 seconds
+    {
+      saveTimer += 30000;
+      m_gameClient->Save();
+    }
 
     // Slow down (increase nextpts) if we're playing catchup after stalling
     if (nextpts < CDVDClock::GetAbsoluteClock())

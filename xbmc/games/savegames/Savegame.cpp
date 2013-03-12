@@ -66,7 +66,7 @@ bool CSavegame::Read(std::vector<uint8_t> &data)
     return false;
 
   CFile file;
-  if (file.Open(m_gamePath) && file.GetLength() > 0)
+  if (file.Open(m_path) && file.GetLength() > 0)
   {
     data.resize((size_t)file.GetLength());
     file.Read(data.data(), data.size());
@@ -81,7 +81,7 @@ bool CSavegame::Write(std::vector<uint8_t> &data) const
     return false;
 
   CFile file;
-  if (file.Open(m_gamePath))
+  if (file.OpenForWrite(m_path))
     return file.Write(data.data(), data.size()) == data.size();
   return false;
 }
@@ -105,9 +105,9 @@ void CSavegame::SetGameCRCFromFile(const CStdString &filename)
   std::vector<char> buffer;
   CFile file;
   int64_t length;
-  if (file.Open(filename) && (length = file.GetLength() > 0))
+  if (file.Open(filename) && (length = file.GetLength()) > 0)
   {
-    buffer.resize(length);
+    buffer.resize((size_t)length);
     file.Read(buffer.data(), length);
     SetGameCRCFromFile(buffer.data(), buffer.size());
   }
