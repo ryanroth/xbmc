@@ -24,7 +24,9 @@
 #include "addons/AddonManager.h"
 #include "Application.h"
 #include "dialogs/GUIDialogYesNo.h"
+#include "filesystem/Directory.h"
 #include "guilib/GUIWindowManager.h"
+#include "settings/Settings.h"
 #include "threads/SingleLock.h"
 #include "URL.h"
 #include "utils/log.h"
@@ -34,7 +36,7 @@
 
 using namespace ADDON;
 using namespace GAME_INFO;
-
+using namespace XFILE;
 
 /* TEMPORARY */
 // Remove this struct when libretro has an API call to query the number of
@@ -118,6 +120,15 @@ void CGameManager::RegisterAddon(GameClientPtr clientAddon, bool launchQueued /*
       // Don't ask the user twice
       m_queuedFile = CFileItem();
     }
+  }
+
+  // Check to see if the savegame folder for this game client exists
+  CStdString savegameFolder;
+  URIUtils::AddFileToFolder(g_settings.GetSavegamesFolder(), clientAddon->ID(), savegameFolder);
+  if (!CDirectory::Exists(savegameFolder))
+  {
+    CLog::Log(LOGINFO, "Create new savegames folder: %s", savegameFolder.c_str());
+    CDirectory::Create(savegameFolder);
   }
 }
 
@@ -262,9 +273,12 @@ void CGameManager::GetGameClientIDs(const CFileItem& file, CStdStringArray &cand
   CStdString gameclient = file.GetProperty("gameclient").asString();
   for (std::vector<GameClientConfig>::const_iterator it = m_gameClients.begin(); it != m_gameClients.end(); it++)
   {
-    CLog::Log(LOGINFO, "GameManager: To open or not to open using %s, that is the question",it->id.c_str());
+    CLog::Log(LOGDEBUG, "GameManager: To open or not to open using %s, that is the question", it->id.c_str());
     if (CGameClient::CanOpen(file, *it, true))
+    {
+      CLog::Log(LOGDEBUG, "GameManager: Adding client %s as a candidate", it->id.c_str());
       candidates.push_back(it->id);
+    }
     if (!gameclient.empty() && it->id == gameclient)
       break; // If the game client isn't installed, it's not a valid candidate
   }

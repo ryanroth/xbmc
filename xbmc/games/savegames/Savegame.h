@@ -66,6 +66,8 @@ public:
   
   const CStdString &GetGameCRC() const { return m_gameCRC; }
   void SetGameCRC(const CStdString &gameCRC) { m_gameCRC = gameCRC; }
+  void SetGameCRCFromFile(const CStdString &filename);
+  void SetGameCRCFromFile(const char *data, size_t length);
   
   uint64_t GetPlaytimeFrames() const { return m_playtimeFrames; }
   void SetPlaytimeFrames(uint64_t playtimeFrames) { m_playtimeFrames = playtimeFrames; }

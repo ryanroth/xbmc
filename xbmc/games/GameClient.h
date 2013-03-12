@@ -239,7 +239,7 @@ namespace ADDON
      * erred when loading serialized state, true otherwise (even if there is
      * no state to load).
      */
-    bool Load(const void *gameBuffer = NULL, int64_t length = 0);
+    bool Load(const void *gameBuffer = NULL, size_t length = 0);
 
     /**
      * Commit the current serialized state to the local drive.
@@ -282,7 +282,7 @@ namespace ADDON
      * gameBuffer and length are convenience variables to avoid hitting the
      * disk for CRC calculation when the game file is already loaded in RAM.
      */
-    bool GetSavegameInfo(const void *gameBuffer = NULL, int64_t length = 0);
+    bool GetSavegameInfo(const void *gameBuffer = NULL, size_t length = 0);
 
     /**
      * Commit savegame metadata to the database.

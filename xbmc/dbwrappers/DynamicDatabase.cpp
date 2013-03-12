@@ -711,7 +711,7 @@ void CDynamicDatabase::AddManyToManyInternal(const char *column, const char *typ
       // Each item needs its own entry in its table and link in the link table
       for (CVariant::const_iterator_array itemIt = items.begin(); itemIt != items.end(); itemIt++)
       {
-        string value = PrepareVariant(&(*itemIt), type);
+        string value = PrepareVariant(*itemIt, type);
         if (value.empty() || value == "''")
           continue;
 
@@ -802,13 +802,15 @@ int CDynamicDatabase::AddObject(const ISerializable *obj, bool bUpdate /* = true
   try
   {
     obj->Serialize(var);
+    
+    if (!IsValid(var))
+      return -1;
 
-    idObject = var["databaseid"].asInteger(-1);
+    idObject = (int)var["databaseid"].asInteger(-1);
 
     // If we weren't given a database ID, check now to see if the item exists
-    // in the database (if bExists is true, result is stored in idObject)
-    if (idObject == -1)
-      bExists = Exists(var, idObject);
+    // in the database (if bExists is true then result is now stored in idObject)
+    bExists = (idObject != -1 || Exists(var, idObject));
 
     // The music database uses REPLACE INTO to update objects. Internally, MySQL
     // does a DELETE and re-INSERT, which causes the FKs in the other tables to
@@ -900,8 +902,8 @@ int CDynamicDatabase::AddObject(const ISerializable *obj, bool bUpdate /* = true
   catch (...)
   {
     CLog::Log(LOGERROR, "%s - Unable to add object. SQL: %s", __FUNCTION__, strSQL.c_str());
+    CLog::Log(LOGERROR, "%s - Make sure that DeleteObject(idObject) is being called");
   }
-
   return idObject;
 }
 

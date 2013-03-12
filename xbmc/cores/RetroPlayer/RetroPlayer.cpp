@@ -470,6 +470,9 @@ void CRetroPlayer::Process()
     nextpts += realFrameTime;
   }
 
+  // Save the game before the video cuts out
+  m_gameClient->CloseFile();
+
   m_video.StopThread(true);
   m_audio.StopThread(true);
   m_bStop = true;

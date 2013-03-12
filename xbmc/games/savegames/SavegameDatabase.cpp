@@ -26,10 +26,6 @@
 #include "utils/Variant.h"
 #include "FileItem.h"
 
-//#include <vector>
-//#include <set>
-//#include <queue>
-
 using namespace std;
 
 CSavegameDatabase::CSavegameDatabase() : CDynamicDatabase("savegame")
@@ -53,7 +49,8 @@ bool CSavegameDatabase::CreateTables()
     BeginTransaction();
     if (!CDynamicDatabase::CreateTables())
       return false;
-
+    
+    CommitTransaction();
     return true;
   }
   catch (dbiplus::DbErrors&)
@@ -69,11 +66,10 @@ bool CSavegameDatabase::UpdateOldVersion(int version)
   if (version < 1)
   {
     BeginDeclarations();
-    DeclareIndex("file", "VARCHAR(128)");
-    DeclareOneToMany("path", "VARCHAR(512)");
-    DeclareOneToMany("folder", "VARCHAR(64)");
-    DeclareOneToMany("year", "INTEGER");
-    DeclareOneToMany("camera", "VARCHAR(72)");
+    DeclareIndex("path", "VARCHAR(512)");
+    DeclareIndex("gamepath", "VARCHAR(512)");
+    DeclareIndex("gamecrc", "CHAR(8)");
+    DeclareOneToMany("gameclient", "CHAR(8)");
   }
   return true;
 }
@@ -82,12 +78,14 @@ bool CSavegameDatabase::Exists(const CVariant &object, int &idObject)
 {
   if (!IsValid(object))
     return false;
+
   CStdString strSQL = PrepareSQL(
     "SELECT savegame.idsavegame "
     "FROM savegame "
     "WHERE path='%s'",
     object["path"].asString().c_str()
   );
+
   if (m_pDS->query(strSQL.c_str()))
   {
     bool bFound = false;
@@ -99,6 +97,7 @@ bool CSavegameDatabase::Exists(const CVariant &object, int &idObject)
     m_pDS->close();
     return bFound;
   }
+
   return false;
 }
 

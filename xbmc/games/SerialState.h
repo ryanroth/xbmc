@@ -30,8 +30,9 @@ class CSerialState
 public:
   CSerialState() : m_frameSize(0), m_maxFrames(0), m_stateSize(0), m_state(NULL), m_nextState(NULL) { }
   ~CSerialState() { Reset(); }
-
+  
   void Init(size_t frameSize, size_t frameCount);
+  bool IsInited() const { return m_state && m_nextState; }
   void Reset(); // Free up any memory allocated
 
   uint8_t *GetState() const { return reinterpret_cast<uint8_t*>(m_state); }

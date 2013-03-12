@@ -31,7 +31,6 @@
 #include "settings/GUISettings.h"
 #include "threads/SingleLock.h"
 #include "URL.h"
-#include "utils/Crc32.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
@@ -53,7 +52,7 @@ bool CGameClient::IRetroStrategy::GetGameInfo(retro_game_info &info) const
 
   if (!m_useVfs)
   {
-    CLog::Log(LOGINFO, "GameClient: Strategy is valid, client is loading file %s", info.path);
+    CLog::Log(LOGDEBUG, "GameClient: Strategy is valid, client is loading file %s", info.path);
   }
   else
   {
@@ -89,26 +88,26 @@ bool CGameClient::IRetroStrategy::GetGameInfo(retro_game_info &info) const
 
     info.data = data;
     info.size = (size_t)length;
-    CLog::Log(LOGINFO, "GameClient: Strategy is valid, client is loading file from VFS (filesize: %lu KB)", info.size);
+    CLog::Log(LOGDEBUG, "GameClient: Strategy is valid, client is loading file from VFS (filesize: %lu KB)", info.size);
   }
   return true;
 }
 
 bool CGameClient::CStrategyUseHD::CanLoad(const GameClientConfig &gc, const CFileItem& file)
 {
-  CLog::Log(LOGINFO, "GameClient::CStrategyUseHD: Testing if we can load game from hard drive");
+  CLog::Log(LOGDEBUG, "GameClient::CStrategyUseHD: Testing if we can load game from hard drive");
 
   // Make sure the file is local
   if (!file.GetAsUrl().GetProtocol().empty())
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseHD: File is not local (or is inside an archive)");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseHD: File is not local (or is inside an archive)");
     return false;
   }
 
   // Make sure the extension is valid
   if (!IsExtensionValid(URIUtils::GetExtension(file.GetPath()), gc.extensions))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseHD: Extension %s is not valid", URIUtils::GetExtension(file.GetPath()).c_str());
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseHD: Extension %s is not valid", URIUtils::GetExtension(file.GetPath()).c_str());
     return false;
   }
 
@@ -119,12 +118,12 @@ bool CGameClient::CStrategyUseHD::CanLoad(const GameClientConfig &gc, const CFil
 
 bool CGameClient::CStrategyUseVFS::CanLoad(const GameClientConfig &gc, const CFileItem& file)
 {
-  CLog::Log(LOGINFO, "GameClient::CStrategyUseVFS: Testing if we can load game from VFS");
+  CLog::Log(LOGDEBUG, "GameClient::CStrategyUseVFS: Testing if we can load game from VFS");
 
   // Obvious check
   if (!gc.bAllowVFS)
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseVFS: Game client does not allow VFS");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseVFS: Game client does not allow VFS");
     return false;
   }
 
@@ -132,7 +131,7 @@ bool CGameClient::CStrategyUseVFS::CanLoad(const GameClientConfig &gc, const CFi
   CStdString ext = URIUtils::GetExtension(file.GetPath());
   if (!IsExtensionValid(ext, gc.extensions))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseVFS: Extension %s is not valid", ext.c_str());
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseVFS: Extension %s is not valid", ext.c_str());
     return false;
   }
 
@@ -143,18 +142,18 @@ bool CGameClient::CStrategyUseVFS::CanLoad(const GameClientConfig &gc, const CFi
 
 bool CGameClient::CStrategyUseParentZip::CanLoad(const GameClientConfig &gc, const CFileItem& file)
 {
-  CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: Testing if the game is in a zip");
+  CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: Testing if the game is in a zip");
 
   // Can't use parent zip if file isn't a child file of a .zip folder
   if (!URIUtils::IsInZIP(file.GetPath()))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: Game is not in a zip file");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: Game is not in a zip file");
     return false;
   }
 
   if (!IsExtensionValid(".zip", gc.extensions))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: This game client does not support zip files");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: This game client does not support zip files");
     return false;
   }
 
@@ -162,21 +161,21 @@ bool CGameClient::CStrategyUseParentZip::CanLoad(const GameClientConfig &gc, con
   CURL parentURL(URIUtils::GetParentPath(file.GetPath()));
   if (!parentURL.GetFileName().empty())
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: Game is not in the root folder of the zip");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: Game is not in the root folder of the zip");
     return false;
   }
 
   // Make sure the container zip is on the local hard disk (or not inside another zip)
   if (!CURL(parentURL.GetHostName()).GetProtocol().empty())
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: Zip file is not on the local hard disk");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: Zip file is not on the local hard disk");
     return false;
   }
 
   // Make sure the extension is valid
   if (!IsExtensionValid(URIUtils::GetExtension(file.GetPath()), gc.extensions))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyUseParentZip: Extension %s is not valid", URIUtils::GetExtension(file.GetPath()).c_str());
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyUseParentZip: Extension %s is not valid", URIUtils::GetExtension(file.GetPath()).c_str());
     return false;
   }
 
@@ -188,19 +187,19 @@ bool CGameClient::CStrategyUseParentZip::CanLoad(const GameClientConfig &gc, con
 
 bool CGameClient::CStrategyEnterZip::CanLoad(const GameClientConfig &gc, const CFileItem& file)
 {
-  CLog::Log(LOGINFO, "GameClient::CStrategyEnterZip: Testing if the file is a zip containing a game");
+  CLog::Log(LOGDEBUG, "GameClient::CStrategyEnterZip: Testing if the file is a zip containing a game");
 
   // Must be a zip file, clearly
   if (!URIUtils::GetExtension(file.GetPath()).Equals(".zip"))
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyEnterZip: File is not a zip");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyEnterZip: File is not a zip");
     return false;
   }
 
   // Must support loading from the vfs
   if (!gc.bAllowVFS)
   {
-    CLog::Log(LOGINFO, "GameClient::CStrategyEnterZip: Game client does not allow VFS");
+    CLog::Log(LOGDEBUG, "GameClient::CStrategyEnterZip: Game client does not allow VFS");
     return false;
   }
 
@@ -370,11 +369,8 @@ void CGameClient::DeInit()
 {
   if (m_dll.IsLoaded())
   {
-    if (m_bIsPlaying)
-    {
-      m_dll.retro_unload_game();
-      m_bIsPlaying = false;
-    }
+    CloseFile();
+
     if (m_bIsInited)
     {
       m_dll.retro_deinit();
@@ -581,13 +577,12 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
 
   m_frameRate = fps;
   m_sampleRate = sampleRate;
+  m_rewindSupported = g_guiSettings.GetBool("games.enablerewind");
 
   // Check if save states are supported, so savestates and rewind can be used.
-  m_rewindSupported = false;
   size_t state_size = m_dll.retro_serialize_size();
   if (state_size)
   {
-    m_rewindSupported = g_guiSettings.GetBool("games.enablerewind");
     if (g_guiSettings.GetBool("games.savestates"))
     {
       // Load previous savestate if possible
@@ -603,9 +598,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
       m_serialState.Init(state_size, (size_t)(g_guiSettings.GetInt("games.rewindtime") * m_frameRate));
 
       if (m_dll.retro_serialize(m_serialState.GetState(), m_serialState.GetFrameSize()))
-      {
         CLog::Log(LOGDEBUG, "GameClient: Rewind is enabled");
-      }
       else
       {
         m_rewindSupported = false;
@@ -654,6 +647,8 @@ void CGameClient::CloseFile()
 
   if (m_dll.IsLoaded() && m_bIsPlaying)
   {
+    if (g_guiSettings.GetBool("games.savestates"))
+      Save();
     m_dll.retro_unload_game();
     m_bIsPlaying = false;
   }
@@ -702,9 +697,21 @@ void CGameClient::RunFrame()
   }
 }
 
-bool CGameClient::GetSavegameInfo(const void *gameBuffer /* = NULL */, int64_t length /* = 0 */)
+bool CGameClient::GetSavegameInfo(const void *gameBuffer /* = NULL */, size_t length /* = 0 */)
 {
   CSavegameDatabase db;
+  if (!db.Open())
+  {
+    CLog::Log(LOGERROR, "GameClient: Couldn't open database, continuing without save support");
+    return false;
+  }
+
+  if (m_saveGame.GetDatabaseId() != -1)
+  {
+    db.GetObjectByID(m_saveGame.GetDatabaseId(), &m_saveGame);
+    return true;
+  }
+
   if (db.GetObjectByIndex("gamepath", m_gamePath, &m_saveGame))
   {
     // TODO: Until we support a "GetObjectByIndices()", we need to make sure
@@ -745,74 +752,45 @@ bool CGameClient::GetSavegameInfo(const void *gameBuffer /* = NULL */, int64_t l
 
     return true;
   }
+
   // Path not in database, try using game CRC
   CLog::Log(LOGDEBUG, "GameClient: %s not in database, trying CRC", URIUtils::GetFileName(m_gamePath).c_str());
-  CStdString strCrc;
-  const void *buffer = gameBuffer; // Make a copy so we don't delete[] the original
-  if (!buffer)
-  {
-    CFile file;
-    if (file.Open(m_gamePath) && (length = file.GetLength()))
-    {
-      buffer = new uint8_t[(size_t)length];
-      if (buffer && file.Read(const_cast<void*>(buffer), length) != length)
-      {
-        delete[] buffer;
-        buffer = NULL;
-      }
-    }
-  }
-  if (buffer)
-  {
-    Crc32 crc;
-    crc.Compute(reinterpret_cast<const char*>(buffer), length);
-    strCrc.Format("%08x", (unsigned __int32)crc);
-    // If gameBuffer is NULL, we allocated buffer in this function
-    if (!gameBuffer)
-    {
-      delete[] buffer;
-      buffer = NULL;
-    }
-  }
-  if (strCrc.IsEmpty())
-  {
-    CLog::Log(LOGERROR, "GameClient: Couldn't calculate CRC! No save support");
-    // Make sure the savegame object is invalid
-    m_saveGame.Reset();
-    return false;
-  }
-  if (!db.GetObjectByIndex("crc", strCrc, &m_saveGame))
-  {
-    // Savegame doesn't exist in the database. Add it.
-    m_saveGame.SetGamePath(m_gamePath);
-    m_saveGame.SetGameClient(ID());
-    m_saveGame.SetGameCRC(strCrc);
-    m_saveGame.SetSize(m_dll.retro_serialize_size());
-    int id = db.AddObject(&m_saveGame);
-    if (id != -1)
-      m_saveGame.SetDatabaseId(id);
-    else
-    {
-      CLog::Log(LOGERROR, "GameClient: Couldn't add savegame to database. No save support");
-      m_saveGame.Reset();
-      return false;
-    }
-  }
+  if (gameBuffer)
+    m_saveGame.SetGameCRCFromFile(reinterpret_cast<const char*>(gameBuffer), length);
+  else
+    m_saveGame.SetGameCRCFromFile(m_gamePath);
+
+  if (!m_saveGame.GetGameCRC().empty()  && db.GetObjectByIndex("crc", m_saveGame.GetGameCRC(), &m_saveGame))
+    return true;
+
+  // Savegame doesn't exist in the database. Add it.
+  m_saveGame.SetGamePath(m_gamePath);
+  m_saveGame.SetGameClient(ID());
+  m_saveGame.SetSize(m_dll.retro_serialize_size());
+  int id = db.AddObject(&m_saveGame);
+  if (id == -1)
+    return false; // failed to add object to database
+
+  m_saveGame.SetDatabaseId(id);
   return true;
 }
 
-bool CGameClient::Load(const void *gameBuffer /* = NULL */, int64_t length /* = 0 */)
+bool CGameClient::Load(const void *gameBuffer /* = NULL */, size_t length /* = 0 */)
 {
   if (!m_bIsPlaying)
-    return false; // DLL would probably crash
+    return false; // libretro DLL would probably crash
 
   CSingleLock lock(m_critSection);
 
   CLog::Log(LOGINFO, "GameClient: Loading last savestate");
 
-  // Note: only return false if DLL erred when loading serialized state
   if (!GetSavegameInfo())
+  {
+    CLog::Log(LOGERROR, "GameClient: Couldn't add savegame to database, continuing without save support");
+    m_saveGame.Reset();
+    // Note: only return false if DLL erred when loading serialized state
     return true;
+  }
 
   std::vector<uint8_t> data;
   if (m_saveGame.Read(data))
@@ -820,7 +798,7 @@ bool CGameClient::Load(const void *gameBuffer /* = NULL */, int64_t length /* = 
     if (!m_dll.retro_unserialize(data.data(), data.size()))
       return false;
     // Reset rewind buffer if rewinding is enabled
-    if (m_rewindSupported)
+    if (m_rewindSupported && m_serialState.IsInited())
     {
       m_serialState.Init(data.size(), (size_t)(g_guiSettings.GetInt("games.rewindtime") * m_frameRate));
       memcpy(m_serialState.GetState(), data.data(), data.size());
@@ -832,10 +810,28 @@ bool CGameClient::Load(const void *gameBuffer /* = NULL */, int64_t length /* = 
 bool CGameClient::CommitSavegameInfo()
 {
   CSavegameDatabase db;
-  
+  if (!db.Open())
+    return false;
+
   // TODO: Set m_saveGame properties, like playtime
 
-  return (db.AddObject(&m_saveGame) != -1);
+  if (m_saveGame.GetDatabaseId() != -1)
+  {
+    return (db.AddObject(&m_saveGame) != -1);
+  }
+  else
+  {
+    // Make sure basic properties are also set
+    m_saveGame.SetGamePath(m_gamePath);
+    m_saveGame.SetGameClient(ID());
+    if (m_saveGame.GetGameCRC().empty())
+      m_saveGame.SetGameCRCFromFile(m_gamePath);
+    int id = db.AddObject(&m_saveGame);
+    if (id == -1)
+      return false; // failed to add object to database
+    m_saveGame.SetDatabaseId(id);
+  }
+  return true;
 }
 
 bool CGameClient::Save()
@@ -848,14 +844,17 @@ bool CGameClient::Save()
   CLog::Log(LOGINFO, "GameClient: Saving current state");
 
   // Prefer serialized states to avoid any game client serialization procedures
-  if (m_rewindSupported)
+  if (m_rewindSupported && m_serialState.GetFrameSize())
   {
     m_savegameBuffer.resize(m_serialState.GetFrameSize());
     memcpy(m_savegameBuffer.data(), m_serialState.GetState(), m_serialState.GetFrameSize());
   }
   else
   {
-    m_savegameBuffer.resize(m_dll.retro_serialize_size());
+    size_t save_size = m_dll.retro_serialize_size();
+    if (!save_size)
+      return false;
+    m_savegameBuffer.resize(save_size);
     if (!m_dll.retro_serialize(m_savegameBuffer.data(), m_savegameBuffer.size()))
       return false;
   }

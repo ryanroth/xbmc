@@ -21,6 +21,7 @@
 #include "Savegame.h"
 #include "filesystem/File.h"
 #include "settings/Settings.h"
+#include "utils/Crc32.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
 
@@ -67,7 +68,7 @@ bool CSavegame::Read(std::vector<uint8_t> &data)
   CFile file;
   if (file.Open(m_gamePath) && file.GetLength() > 0)
   {
-    data.resize(file.GetLength());
+    data.resize((size_t)file.GetLength());
     file.Read(data.data(), data.size());
     return true;
   }
@@ -92,11 +93,31 @@ bool CSavegame::VerifyPath() const
   if (!m_gameClient.empty() && !m_gameCRC.empty())
   {
     CStdString hash;
-    hash.Format("%s/%c/%s.savestate", m_gameClient.c_str(), m_gameCRC[0], m_gameCRC.c_str());
+    hash.Format("%s/%s.savestate", m_gameClient.c_str(), m_gameCRC.c_str());
     URIUtils::AddFileToFolder(g_settings.GetSavegamesFolder(), hash, m_path);
     return true;
   }
   return false;
+}
+
+void CSavegame::SetGameCRCFromFile(const CStdString &filename)
+{
+  std::vector<char> buffer;
+  CFile file;
+  int64_t length;
+  if (file.Open(filename) && (length = file.GetLength() > 0))
+  {
+    buffer.resize(length);
+    file.Read(buffer.data(), length);
+    SetGameCRCFromFile(buffer.data(), buffer.size());
+  }
+}
+
+void CSavegame::SetGameCRCFromFile(const char *data, size_t length)
+{
+  Crc32 crc;
+  crc.Compute(data, length);
+  m_gameCRC.Format("%08x", (unsigned __int32)crc);
 }
 
 void CSavegame::Serialize(CVariant& value) const
@@ -115,8 +136,8 @@ void CSavegame::Serialize(CVariant& value) const
 void CSavegame::Deserialize(const CVariant& value)
 {
   m_path              = value["path"].asString();
-  m_databaseId        = value["databaseid"].asInteger();
-  m_size              = value["size"].asUnsignedInteger();
+  m_databaseId        = (int)value["databaseid"].asInteger();
+  m_size              = (size_t)value["size"].asUnsignedInteger();
   m_gamePath          = value["gamepath"].asString();
   m_gameClient        = value["gameclient"].asString();
   m_gameCRC           = value["gamecrc"].asString();
