@@ -751,11 +751,11 @@ bool CGameClient::GetSavegameInfo(const void *gameBuffer /* = NULL */, int64_t l
   const void *buffer = gameBuffer; // Make a copy so we don't delete[] the original
   if (!buffer)
   {
-    CFile vfsFile;
-    if (vfsFile.Open(m_gamePath) && (length = vfsFile.GetLength()))
+    CFile file;
+    if (file.Open(m_gamePath) && (length = file.GetLength()))
     {
       buffer = new uint8_t[(size_t)length];
-      if (buffer && vfsFile.Read(const_cast<void*>(buffer), length) != length)
+      if (buffer && file.Read(const_cast<void*>(buffer), length) != length)
       {
         delete[] buffer;
         buffer = NULL;

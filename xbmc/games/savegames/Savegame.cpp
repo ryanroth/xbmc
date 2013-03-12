@@ -19,9 +19,12 @@
  */
 
 #include "Savegame.h"
+#include "filesystem/File.h"
 #include "settings/Settings.h"
 #include "utils/URIUtils.h"
 #include "utils/Variant.h"
+
+using namespace XFILE;
 
 void CSavegame::Reset()
 {
@@ -56,28 +59,30 @@ const CSavegame& CSavegame::operator=(const CSavegame& rhs)
   return *this;
 }
 
-size_t CSavegame::Read(uint8_t **data)
+bool CSavegame::Read(std::vector<uint8_t> &data)
 {
   if (!VerifyPath())
     return false;
 
-  if (m_size)
+  CFile file;
+  if (file.Open(m_gamePath) && file.GetLength() > 0)
   {
-    *data = new uint8_t[m_size];
-    if (*data)
-    {
-      // Read
-    }
-    return m_size;
+    data.resize(file.GetLength());
+    file.Read(data.data(), data.size());
+    return true;
   }
-  return 0;
+  return false;
 }
 
-void CSavegame::Write(const uint8_t *data, size_t size) const
+bool CSavegame::Write(std::vector<uint8_t> &data) const
 {
   if (!VerifyPath())
-    return;
+    return false;
 
+  CFile file;
+  if (file.Open(m_gamePath))
+    return file.Write(data.data(), data.size()) == data.size();
+  return false;
 }
 
 bool CSavegame::VerifyPath() const

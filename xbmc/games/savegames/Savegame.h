@@ -38,7 +38,7 @@ public:
   const CSavegame& operator=(const CSavegame &rhs);
   
   bool Read(std::vector<uint8_t> &data);
-  void Write(const std::vector<uint8_t> &data) const;
+  bool Write(std::vector<uint8_t> &data) const;
 
   virtual void Serialize(CVariant& value) const;
   virtual void Deserialize(const CVariant& value);
