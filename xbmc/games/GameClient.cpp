@@ -23,37 +23,41 @@
 #include "GameClient.h"
 #include "addons/AddonManager.h"
 #include "Application.h"
+#include "FileItem.h" // See TODO in GetSavegameInfo()
 #include "filesystem/File.h"
 #include "filesystem/Directory.h"
+#include "savegames/SavegameDatabase.h"
+#include "savegames/Savegame.h"
 #include "settings/GUISettings.h"
 #include "threads/SingleLock.h"
 #include "URL.h"
+#include "utils/Crc32.h"
 #include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 
 #include <limits>
+#include <map> // See TODO in GetSavegameInfo()
 
 using namespace ADDON;
 using namespace GAME_INFO;
 using namespace XFILE;
 
-
 bool CGameClient::IRetroStrategy::GetGameInfo(retro_game_info &info) const
 {
-  info.path = NULL;
+  // Always return path. If info.data is set, then info.path must be set back to NULL
+  info.path = m_path.c_str();
   info.data = NULL;
   info.size = 0;
   info.meta = NULL;
 
   if (!m_useVfs)
   {
-    info.path = m_path.c_str();
     CLog::Log(LOGINFO, "GameClient: Strategy is valid, client is loading file %s", info.path);
   }
   else
   {
-    unsigned char *data;
+    uint8_t *data;
     int64_t length;
 
     // Load the file from the vfs
@@ -67,13 +71,13 @@ bool CGameClient::IRetroStrategy::GetGameInfo(retro_game_info &info) const
     length = vfsFile.GetLength();
 
     // Check for file size overflow (libretro accepts files <= size_t max)
-    if (length <= 0 || length >= std::numeric_limits<size_t>::max())
+    if (length <= 0 || (long long)length >= (long long)std::numeric_limits<size_t>::max())
     {
       CLog::Log(LOGERROR, "GameClient: Invalid file size: %"PRId64" bytes", length);
       return false;
     }
 
-    data = new unsigned char[(size_t)length];
+    data = new uint8_t[(size_t)length];
 
     // Verify the allocation and read in the data
     if (!(data && vfsFile.Read(data, length) == length))
@@ -501,18 +505,31 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
   GetStrategy(hd, outerzip, vfs, innerzip, strategy);
 
   bool success = false;
-  for (unsigned int i = 0; i < sizeof(strategy) / sizeof(strategy[0]); i++)
+  for (unsigned int i = 0; i < sizeof(strategy) / sizeof(strategy[0]) && !success; i++)
   {
     if (strategy[i]->CanLoad(m_config, file) && strategy[i]->GetGameInfo(info))
     {
+      // Use the path of the discovered game file UNLESS CStrategyUseParentZip was chosen
+      if (URIUtils::GetExtension(info.path).Equals(".zip") && !URIUtils::GetExtension(file.GetPath()).Equals(".zip"))
+        m_gamePath = file.GetPath();
+      else
+        m_gamePath = info.path;
+
+      // If info.data is set, then info.path must be set back to NULL
+      if (info.data)
+        info.path = NULL;
+
       if (m_dll.retro_load_game(&info))
       {
         CLog::Log(LOGINFO, "GameClient: Client successfully loaded game");
         success = true;
-        break;
       }
       else
         CLog::Log(LOGINFO, "GameClient: Client failed to load game");
+
+      // Hopefully the game client assumed its own copy of the game data
+      //delete[] info.data; // TODO
+      info.data = NULL;
     }
   }
 
@@ -537,7 +554,6 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
     return false;
 
   m_bIsPlaying = true;
-  m_strPath = file.GetPath();
 
   // Get information about system audio/video timings and geometry
   // Can be called only after retro_load_game()
@@ -553,7 +569,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
   double sampleRate       = av_info.timing.sample_rate; // 32040.5 or 31997.222656
 
   CLog::Log(LOGINFO, "GameClient: ---------------------------------------");
-  CLog::Log(LOGINFO, "GameClient: Opened file %s", m_strPath.c_str());
+  CLog::Log(LOGINFO, "GameClient: Opened file %s", m_gamePath.c_str());
   CLog::Log(LOGINFO, "GameClient: Base Width: %u", baseWidth);
   CLog::Log(LOGINFO, "GameClient: Base Height: %u", baseHeight);
   CLog::Log(LOGINFO, "GameClient: Max Width: %u", maxWidth);
@@ -575,7 +591,7 @@ bool CGameClient::OpenFile(const CFileItem& file, const DataReceiver &callbacks)
     if (g_guiSettings.GetBool("games.savestates"))
     {
       // Load previous savestate if possible
-      if (!Load() && m_rewindSupported)
+      if (!Load(info.data, info.size) && m_rewindSupported)
       {
         CLog::Log(LOGDEBUG, "GameClient: Failed to load last savestate, forcing rewind to off");
         m_rewindSupported = false;
@@ -686,20 +702,169 @@ void CGameClient::RunFrame()
   }
 }
 
-bool CGameClient::Load()
+bool CGameClient::GetSavegameInfo(const void *gameBuffer /* = NULL */, int64_t length /* = 0 */)
 {
+  CSavegameDatabase db;
+  if (db.GetObjectByIndex("gamepath", m_gamePath, &m_saveGame))
+  {
+    // TODO: Until we support a "GetObjectByIndices()", we need to make sure
+    // the savegame is for the right game client. This also yields a problem,
+    // as we would need to duplicate this code for the CRC query below as well.
+    if (m_saveGame.GetGameClient() != ID())
+    {
+      CLog::Log(LOGERROR, "GameClient: Can't load savegame - game was played by another emulator previously!");
+      CLog::Log(LOGERROR, "GameClient: Previous emulator was %s", m_saveGame.GetGameClient().c_str());
+
+      // Wrong gameclient, see if we have an entry for the right one
+      int id;
+      if (!db.GetItemID("gameclient", ID(), id))
+      {
+        // Game client not in database, so game obviously isn't
+      }
+      else
+      {
+        CFileItemList savegames;
+        std::map<std::string, long> predicates;
+        predicates["gameclient"] = id;
+        if (db.GetObjectsNav(savegames, predicates) && savegames.Size())
+        {
+          // Got a list of all games played by this game client, search it for this game
+          for (int i = 0; i < savegames.Size(); i++)
+          {
+            // game path is the file item label
+            if (savegames[i]->GetLabel().Equals(m_gamePath))
+            {
+              // Found a match, our game was played by this emulator previously
+              break;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    return true;
+  }
+  // Path not in database, try using game CRC
+  CLog::Log(LOGDEBUG, "GameClient: %s not in database, trying CRC", URIUtils::GetFileName(m_gamePath).c_str());
+  CStdString strCrc;
+  const void *buffer = gameBuffer; // Make a copy so we don't delete[] the original
+  if (!buffer)
+  {
+    CFile vfsFile;
+    if (vfsFile.Open(m_gamePath) && (length = vfsFile.GetLength()))
+    {
+      buffer = new uint8_t[(size_t)length];
+      if (buffer && vfsFile.Read(const_cast<void*>(buffer), length) != length)
+      {
+        delete[] buffer;
+        buffer = NULL;
+      }
+    }
+  }
+  if (buffer)
+  {
+    Crc32 crc;
+    crc.Compute(reinterpret_cast<const char*>(buffer), length);
+    strCrc.Format("%08x", (unsigned __int32)crc);
+    // If gameBuffer is NULL, we allocated buffer in this function
+    if (!gameBuffer)
+    {
+      delete[] buffer;
+      buffer = NULL;
+    }
+  }
+  if (strCrc.IsEmpty())
+  {
+    CLog::Log(LOGERROR, "GameClient: Couldn't calculate CRC! No save support");
+    // Make sure the savegame object is invalid
+    m_saveGame.Reset();
+    return false;
+  }
+  if (!db.GetObjectByIndex("crc", strCrc, &m_saveGame))
+  {
+    // Savegame doesn't exist in the database. Add it.
+    m_saveGame.SetGamePath(m_gamePath);
+    m_saveGame.SetGameClient(ID());
+    m_saveGame.SetGameCRC(strCrc);
+    m_saveGame.SetSize(m_dll.retro_serialize_size());
+    int id = db.AddObject(&m_saveGame);
+    if (id != -1)
+      m_saveGame.SetDatabaseId(id);
+    else
+    {
+      CLog::Log(LOGERROR, "GameClient: Couldn't add savegame to database. No save support");
+      m_saveGame.Reset();
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CGameClient::Load(const void *gameBuffer /* = NULL */, int64_t length /* = 0 */)
+{
+  if (!m_bIsPlaying)
+    return false; // DLL would probably crash
+
+  CSingleLock lock(m_critSection);
+
   CLog::Log(LOGINFO, "GameClient: Loading last savestate");
 
-  // Get savestate URL
+  // Note: only return false if DLL erred when loading serialized state
+  if (!GetSavegameInfo())
+    return true;
 
-  // Deserialize
+  std::vector<uint8_t> data;
+  if (m_saveGame.Read(data))
+  {
+    if (!m_dll.retro_unserialize(data.data(), data.size()))
+      return false;
+    // Reset rewind buffer if rewinding is enabled
+    if (m_rewindSupported)
+    {
+      m_serialState.Init(data.size(), (size_t)(g_guiSettings.GetInt("games.rewindtime") * m_frameRate));
+      memcpy(m_serialState.GetState(), data.data(), data.size());
+    }
+  }
+  return true;
+}
 
-  return m_dll.retro_serialize_size() > 0;
+bool CGameClient::CommitSavegameInfo()
+{
+  CSavegameDatabase db;
+  
+  // TODO: Set m_saveGame properties, like playtime
+
+  return (db.AddObject(&m_saveGame) != -1);
 }
 
 bool CGameClient::Save()
 {
-  CLog::Log(LOGINFO, "GameClient: Loading last savestate");
+  if (!m_bIsPlaying)
+    return false;
+
+  CSingleLock lock(m_critSection);
+
+  CLog::Log(LOGINFO, "GameClient: Saving current state");
+
+  // Prefer serialized states to avoid any game client serialization procedures
+  if (m_rewindSupported)
+  {
+    m_savegameBuffer.resize(m_serialState.GetFrameSize());
+    memcpy(m_savegameBuffer.data(), m_serialState.GetState(), m_serialState.GetFrameSize());
+  }
+  else
+  {
+    m_savegameBuffer.resize(m_dll.retro_serialize_size());
+    if (!m_dll.retro_serialize(m_savegameBuffer.data(), m_savegameBuffer.size()))
+      return false;
+  }
+
+  m_saveGame.SetSize(m_savegameBuffer.size());
+  if (!CommitSavegameInfo())
+    return false;
+
+  m_saveGame.Write(m_savegameBuffer);
   return true;
 }
 

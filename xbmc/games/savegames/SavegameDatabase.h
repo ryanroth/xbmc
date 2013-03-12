@@ -29,6 +29,8 @@ public:
 
   virtual bool Open();
 
+
+
   bool HasSavestates() { return Count() != 0; }
 
 protected:

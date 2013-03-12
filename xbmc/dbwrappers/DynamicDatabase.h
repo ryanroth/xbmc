@@ -81,8 +81,9 @@ public:
 
   /*!
    * @param predicates A 1:N or N:N condition, item -> ID map, e.g. "year" -> 5
-   * becomes WHERE idyear=5
-   * Only intersection (AND) is supported, no union (OR) or complement (NOT) yet
+   * becomes WHERE idyear=5. Only intersection (AND) is supported, no union (OR)
+   * or complement (NOT) yet.
+   * @return true if the query succeeds, even if no results are returned
    */
   bool GetObjectsNav(CFileItemList &items, const std::map<std::string, long> &predicates = std::map<std::string, long>());
 

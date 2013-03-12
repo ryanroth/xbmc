@@ -1009,7 +1009,6 @@ bool CDynamicDatabase::GetObjectByID(int idObject, IDeserializable *obj)
         const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(0).get_asString().c_str());
         CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(0).get_asString().size());
 #endif
-        // TODO: necessary?
         var["databaseid"] = idObject;
         obj->Deserialize(var);
 
@@ -1047,7 +1046,8 @@ bool CDynamicDatabase::GetObjectByIndex(const string &column, const CVariant &va
       (
         "SELECT id%s, strContentBSON64 "
         "FROM %s "
-        "WHERE %s=" + PrepareVariant(value, type)
+        "WHERE %s=" + PrepareVariant(value, type) + " "
+        "LIMIT 1"
       ).c_str(),
       m_table, m_table, column.c_str()
     );
@@ -1063,7 +1063,6 @@ bool CDynamicDatabase::GetObjectByIndex(const string &column, const CVariant &va
         const unsigned char *output = reinterpret_cast<const unsigned char*>(m_pDS->fv(1).get_asString().c_str());
         CVariant var = CJSONVariantParser::Parse(output, m_pDS->fv(1).get_asString().size());
 #endif
-        // TODO: necessary?
         var["databaseid"] = m_pDS->fv(0).get_asInt();
         obj->Deserialize(var);
 

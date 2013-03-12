@@ -24,6 +24,7 @@
 #include "addons/Addon.h"
 #include "FileItem.h"
 #include "GameClientDLL.h"
+#include "games/savegames/Savegame.h"
 #include "games/tags/GameInfoTagLoader.h"
 #include "SerialState.h"
 
@@ -234,9 +235,11 @@ namespace ADDON
     void RunFrame();
 
     /**
-     * Load the serialized state from the local drive.
+     * Load the serialized state from the local drive. Return false if DLL
+     * erred when loading serialized state, true otherwise (even if there is
+     * no state to load).
      */
-    bool Load();
+    bool Load(const void *gameBuffer = NULL, int64_t length = 0);
 
     /**
      * Commit the current serialized state to the local drive.
@@ -266,6 +269,25 @@ namespace ADDON
 
   private:
     void Initialize();
+    
+    /**
+     * Retrieve metadata about the previous savegame stored on disk. First the
+     * filename is checked, then the CRC of the game file. If no record exists,
+     * one is added to the database, even if the target savestate in the
+     * userdate folder doesn't exist. In this way, multiple CRC calculations
+     * are prevented. Returns false if there is a problem adding the entry to
+     * the database. If true, m_saveGame.GetPath() will be the path of the
+     * savegame (which may not exist yet).
+     *
+     * gameBuffer and length are convenience variables to avoid hitting the
+     * disk for CRC calculation when the game file is already loaded in RAM.
+     */
+    bool GetSavegameInfo(const void *gameBuffer = NULL, int64_t length = 0);
+
+    /**
+     * Commit savegame metadata to the database.
+     */
+    bool CommitSavegameInfo();
 
     /**
      * Given the strategies above, order them in the way that respects
@@ -291,7 +313,7 @@ namespace ADDON
     GameClientDLL    m_dll;
     bool             m_bIsInited; // Keep track of whether m_dll.retro_init() has been called
     bool             m_bIsPlaying; // This is true between retro_load_game() and retro_unload_game()
-    CStdString       m_strPath; // path of the current playing file
+    CStdString       m_gamePath; // path of the current playing file
 
     // Returned by m_dll:
     CStdString       m_clientName;
@@ -303,6 +325,10 @@ namespace ADDON
     CCriticalSection m_critSection;
     bool             m_rewindSupported;
     CSerialState     m_serialState;
+    CSavegame        m_saveGame;
+
+    // If rewinding is disabled, use a buffer to avoid re-allocation when saving games
+    std::vector<uint8_t> m_savegameBuffer;
 
     /**
      * This callback exists to give XBMC a chance to poll for input. XBMC already

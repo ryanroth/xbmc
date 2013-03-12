@@ -3057,7 +3057,7 @@
     <ClCompile Include="..\..\xbmc\games\savegames\SavegameDatabase.cpp">
       <Filter>games\savegames</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\xbmc\games\savegames\SavegameInfoTag.cpp">
+    <ClCompile Include="..\..\xbmc\games\savegames\Savegame.cpp">
       <Filter>games\savegames</Filter>
     </ClCompile>
   </ItemGroup>
@@ -5957,7 +5957,7 @@
     <ClInclude Include="..\..\xbmc\games\savegames\SavegameDatabase.h">
       <Filter>games\savegames</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\xbmc\games\savegames\SavegameInfoTag.h">
+    <ClInclude Include="..\..\xbmc\games\savegames\Savegame.h">
       <Filter>games\savegames</Filter>
     </ClInclude>
   </ItemGroup>

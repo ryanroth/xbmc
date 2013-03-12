@@ -19,7 +19,7 @@
  */
 
 #include "SavegameDatabase.h"
-#include "SavegameInfoTag.h"
+#include "Savegame.h"
 #include "settings/AdvancedSettings.h"
 #include "utils/log.h"
 #include "utils/URIUtils.h"
@@ -36,8 +36,8 @@ CSavegameDatabase::CSavegameDatabase() : CDynamicDatabase("savegame")
 {
   BeginDeclarations();
   DeclareIndex("path", "VARCHAR(512)");
-  DeclareIndex("rompath", "VARCHAR(512)");
-  DeclareIndex("romcrc", "CHAR(8)");
+  DeclareIndex("gamepath", "VARCHAR(512)");
+  DeclareIndex("gamecrc", "CHAR(8)");
   DeclareOneToMany("gameclient", "CHAR(8)");
 }
 
@@ -109,8 +109,8 @@ bool CSavegameDatabase::IsValid(const CVariant &object) const
 
 CFileItem* CSavegameDatabase::CreateFileItem(const CVariant &object, int id) const
 {
-  CSavegameInfoTag p(object);
-  CFileItem *item = new CFileItem(URIUtils::GetFileName(p.GetRomPath()), false);
+  CSavegame p(object);
+  CFileItem *item = new CFileItem(p.GetGamePath(), false);
   item->SetPath(p.GetPath());
   item->m_dwSize = p.GetSize();
   item->m_bIsFolder = false;
