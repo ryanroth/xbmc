@@ -902,7 +902,7 @@ int CDynamicDatabase::AddObject(const ISerializable *obj, bool bUpdate /* = true
   catch (...)
   {
     CLog::Log(LOGERROR, "%s - Unable to add object. SQL: %s", __FUNCTION__, strSQL.c_str());
-    CLog::Log(LOGERROR, "%s - Make sure that DeleteObject(idObject) is being called");
+    CLog::Log(LOGERROR, "%s - Make sure that DeleteObject(idObject) is being called", __FUNCTION__);
   }
   return idObject;
 }
