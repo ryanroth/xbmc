@@ -1,5 +1,5 @@
-SRCS=SavegameDatabase.cpp \
-     SavegameInfoTag.cpp
+SRCS=Savegame.cpp \
+     SavegameDatabase.cpp
 
 LIB=savegames.a
 
