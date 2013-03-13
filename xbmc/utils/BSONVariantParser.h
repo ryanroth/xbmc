@@ -23,7 +23,6 @@
 
 #include <string>
 
-enum bson_type;
 struct bson_iterator;
 
 class CBSONVariantParser
@@ -32,5 +31,5 @@ public:
   static CVariant Parse(const char *bsonData);
   static CVariant ParseBase64(const std::string &bsonBase64);
 private:
-  static CVariant InternalParse(bson_type type, bson_iterator *it);
+  static CVariant InternalParse(int type, bson_iterator *it);
 };

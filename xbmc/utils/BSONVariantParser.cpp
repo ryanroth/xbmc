@@ -54,7 +54,7 @@ CVariant CBSONVariantParser::Parse(const char *bsonData)
   return output;
 }
 
-CVariant CBSONVariantParser::InternalParse(bson_type type, bson_iterator *it)
+CVariant CBSONVariantParser::InternalParse(int type, bson_iterator *it)
 {
   switch (type)
   {

@@ -29,26 +29,26 @@ using namespace std;
 
 void CBSONVariantWriter::WriteBase64(const CVariant &value, string &output)
 {
-  vector<const char> data;
+  vector<char> data;
   CBSONVariantWriter::Write(value, data);
-  return Base64::Encode(data.data(), data.size(), output);
+  Base64::Encode(data.data(), data.size(), output);
 }
 
 string CBSONVariantWriter::WriteBase64(const CVariant &value)
 {
-  vector<const char> data;
+  vector<char> data;
   CBSONVariantWriter::Write(value, data);
   return Base64::Encode(data.data(), data.size());
 }
 
-vector<const char> CBSONVariantWriter::Write(const CVariant &value)
+vector<char> CBSONVariantWriter::Write(const CVariant &value)
 {
-  vector<const char> output;
+  vector<char> output;
   Write(value, output);
   return output;
 }
 
-void CBSONVariantWriter::Write(const CVariant &value, vector<const char> &output)
+void CBSONVariantWriter::Write(const CVariant &value, vector<char> &output)
 {
   output.clear();
 
@@ -83,11 +83,11 @@ void CBSONVariantWriter::Write(const CVariant &value, vector<const char> &output
       error = "Unknown?";
       break;
     }
-    CLog::Log(LOGERROR, __FUNCTION__ ": writing the bson document returned %s", error.c_str());
+    CLog::Log(LOGERROR, "%s: writing the bson document returned %s", __FUNCTION__, error.c_str());
   }
   else
   {
-    output = vector<const char>(bson_data(document), bson_data(document) + bson_size(document));
+    output = vector<char>(bson_data(document), bson_data(document) + bson_size(document));
   }
   bson_destroy(document);
 }
@@ -122,7 +122,7 @@ bool CBSONVariantWriter::InternalWrite(bson *document, const char *name, const C
       char index[6];
       for (CVariant::const_iterator_array it = value.begin_array(); it != value.end_array() && success; it++)
       {
-        itoa(i++, index, 10);
+        snprintf(index, sizeof(index), "%u", i++);
         success &= InternalWrite(document, index, *it);
       }
       success &= bson_append_finish_array(document) == BSON_OK;

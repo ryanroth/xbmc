@@ -28,10 +28,10 @@ struct bson;
 class CBSONVariantWriter
 {
 public:
-  static std::vector<const char> Write(const CVariant &value);
-  static void                    Write(const CVariant &value, std::vector<const char> &output);
-  static std::string             WriteBase64(const CVariant &value);
-  static void                    WriteBase64(const CVariant &value, std::string &output);
+  static std::vector<char> Write(const CVariant &value);
+  static void              Write(const CVariant &value, std::vector<char> &output);
+  static std::string       WriteBase64(const CVariant &value);
+  static void              WriteBase64(const CVariant &value, std::string &output);
 private:
   static bool InternalWrite(bson *document, const char *name, const CVariant &value);
 };
